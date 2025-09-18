@@ -39,7 +39,6 @@ except Exception as e:
 # ----------------------------------------------------------------
 from .encryption_utils import encrypt_message, decrypt_message
 
-
 # ----------------------------------------------------------------
 # Registration / Login / Pages
 # ----------------------------------------------------------------
@@ -125,11 +124,15 @@ def msgpage(request):
 @login_required(login_url='loginpage')
 def inboxpage(request):
     """Inbox page (protected)"""
+    import pytz
+    from django.utils import timezone
+
     users = User.objects.exclude(id=request.user.id)
     inbox_messages = Message.objects.filter(receiver=request.user).order_by(
         "-created_at" if hasattr(Message, "created_at") else "-timestamp"
     )
 
+    ist = pytz.timezone('Asia/Kolkata')
     messages_data = []
     for msg in inbox_messages:
         try:
@@ -138,11 +141,17 @@ def inboxpage(request):
             logger.error("Decryption failed for msg %s: %s", msg.id, e)
             decrypted_text = "[Decryption Failed]"
 
+        # Convert UTC to IST
+        created_utc = getattr(msg, "created_at", None) or getattr(msg, "timestamp", None)
+        created_ist = created_utc.astimezone(ist) if created_utc else None
+        created_str = created_ist.strftime("%d-%m-%Y %H:%M:%S") if created_ist else "—"
+
         messages_data.append({
             "sender": msg.sender,
             "text": decrypted_text,
             "hash": getattr(msg, "hash_value", None) or "—",
             "classification": getattr(msg, "classification", "unknown"),
+            "created_at": created_str,
         })
 
     return render(request, 'inboxpage.html', {

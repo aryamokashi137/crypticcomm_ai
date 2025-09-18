@@ -59,8 +59,26 @@
     </button>
 
     <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <!-- Left side -->
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        <!-- Home first -->
         <li class="nav-item"><a class="nav-link active" aria-current="page" href="/homepage">Home</a></li>
+        
+        <!-- Contacts second -->
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            Contacts
+          </a>
+          <ul class="dropdown-menu">
+            {% for email in user_emails %}
+              <li><a class="dropdown-item" href="mailto:{{ email }}">{{ email }}</a></li>
+            {% empty %}
+              <li><span class="dropdown-item-text text-muted">No contacts</span></li>
+            {% endfor %}
+          </ul>
+        </li>
+
+        <!-- Inbox third -->
         <li class="nav-item position-relative">
           <a class="nav-link" href="/inboxpage">
             Inbox
@@ -71,12 +89,16 @@
           </a>
         </li>
       </ul>
+
+      <!-- Right side -->
       <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
         <li class="nav-item"><a class="nav-link text-danger fw-bold" href="/logoutpage">Logout</a></li>
       </ul>
     </div>
   </div>
 </nav>
+
+
 
 <div class="container">
   <label for="floatingInputGroup1" class="fw-bold text-white">Enter mail id</label>
