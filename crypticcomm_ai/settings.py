@@ -111,7 +111,7 @@ EMAIL_USE_TLS = True
 
 #  Your dedicated Gmail for CrypticComm
 EMAIL_HOST_USER = "crypticcomm.notify@gmail.com"
-EMAIL_HOST_PASSWORD = "chbc zihl quew cpyq"  # App Password generated in Google
+EMAIL_HOST_PASSWORD = "***"  # App Password generated in Google
 
 #  Default sender that recipients will see
 DEFAULT_FROM_EMAIL = f"CrypticComm <{EMAIL_HOST_USER}>"
