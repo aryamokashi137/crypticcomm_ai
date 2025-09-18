@@ -1,0 +1,4 @@
+# Ignore large model files for now
+ml/msg_classifier_model/model.safetensors
+ml/msg_classifier_model/*.pt
+ml/msg_classifier_model/*.pkl
