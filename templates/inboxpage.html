@@ -1,203 +1,375 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Inbox page</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-  <style>
-    body {
-      background: radial-gradient(circle at top left, rgba(30,144,255,0.4), transparent 60%),
-                  radial-gradient(circle at bottom right, rgba(138,43,226,0.4), transparent 60%),
-                  radial-gradient(circle at center, #0a0a6b, #1b2a49 70%, #000000);
-      background-attachment: fixed;
-      background-image: radial-gradient(rgba(255,255,255,0.07) 1px, transparent 1px),
-                        radial-gradient(circle at top left, rgba(30,144,255,0.4), transparent 60%),
-                        radial-gradient(circle at bottom right, rgba(138,43,226,0.4), transparent 60%),
-                        radial-gradient(circle at center, #0a0a6b, #1b2a49 70%, #000000);
-      background-size: 40px 40px, auto, auto, auto;
-      color: white;
-      height: 100vh;
-      margin: 0;
-      display: flex;
-      flex-direction: column;
-    }
-    .navbar {
-      padding-top: 1.5rem; 
-      padding-bottom: 1.5rem;
-      background-color: white !important;
-      z-index: 1;
-    }
-    .navbar .nav-link, 
-    .navbar .navbar-brand h3 {
-      color: black !important;
-    }
-    .table-container { 
-      margin: 40px auto; 
-      width: 95%; 
-      max-height: 70vh; 
-      overflow-y: auto; 
-    }
-    table { 
-      background-color: white; 
-      border-radius: 12px; 
-      overflow: hidden; 
-      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-    }
-    thead th { 
-      color: #212529; 
-      text-align: center; 
-      background-color: #f1f3f5; 
-      font-weight: 600; 
-    }
-    tbody td { 
-      text-align: center; 
-      vertical-align: middle; 
-      font-size: 0.95rem;
-    }
-    tbody tr:nth-child(even) { background-color: #f8f9fa; }
-    tbody tr:hover { background-color: #e9ecef; }
-    .no-msg-row { 
-      text-align: center; 
-      color: #6c757d; 
-      font-style: italic; 
-    }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inbox - CrypticComm</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
-    /* Blur effect */
-    .blurred-text {
-      filter: blur(6px);
-      color: transparent;
-      text-shadow: 0 0 6px #999;
-      user-select: none;
-      display: inline-block;
-      max-width: 220px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
+<style>
+body {
+    background: radial-gradient(circle at top left, rgba(70, 160, 255, 0.35), transparent 60%),
+                radial-gradient(circle at bottom right, rgba(160, 70, 240, 0.35), transparent 60%),
+                radial-gradient(circle at top right, rgba(255, 105, 180, 0.35), transparent 60%),
+                radial-gradient(circle at center, #0a0a60, #152040 70%, #0d0d0d);
+    color: white;
+    font-family: 'Poppins', sans-serif;
+    min-height: 100vh;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+}
 
-    /* Red lock button */
-    .unlock-btn {
-      background: white;
-      border: 2px solid #dc3545;
-      color: #dc3545;
-      border-radius: 50%;
-      padding: 6px 10px;
-      font-size: 1rem;
-      margin-left: 10px;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-    .unlock-btn:hover {
-      background: #dc3545;
-      color: white;
-      transform: scale(1.1);
-    }
+.navbar {
+    padding-top: 1.2rem;
+    padding-bottom: 1.2rem;
+    background: rgba(255, 255, 255, 0.1) !important;
+    backdrop-filter: blur(12px);
+    border-radius: 16px;
+    margin: 0.5rem 1rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+.navbar-brand h3 { color: #fff; font-family: 'Orbitron', sans-serif; font-weight: 600; display: flex; align-items: center;}
+.navbar-brand h3 i { margin-right: 10px;}
+.nav-link { color: white !important; font-weight: 500;}
+.nav-link:hover { text-decoration: underline;}
+.nav-link i { margin-right: 5px; }
 
-    /* Popup */
-    .popup {
-      position: absolute;
-      background: #fff;
-      color: black;
-      border: 1px solid #ccc;
-      padding: 16px;
-      border-radius: 10px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
-      z-index: 100;
-      max-width: 400px;
-      min-width: 250px;
-    }
-    .hidden { display: none; }
-  </style>
+.inbox-wrapper { display: flex; flex: 1; margin: 1rem; border-radius: 16px; overflow: hidden; background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(12px);}
+.sidebar { width: 250px; background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(14px); display: flex; flex-direction: column; padding: 1rem; position: relative;}
+.sidebar h5 { font-weight: 600; margin-bottom: 1rem;}
+.chat-list { list-style: none; padding: 0; margin: 0;}
+.chat-list li { padding: 0.7rem; margin-bottom: 0.5rem; background: rgba(255,255,255,0.1); border-radius: 12px; cursor: pointer; transition: 0.3s; display: flex; align-items: center;}
+.chat-list li:hover, .chat-list li.active { background: rgba(255,255,255,0.2);}
+.chat-list li i { margin-right: 8px; }
+
+.chat-area { flex: 1; display: flex; flex-direction: column; padding: 1rem;}
+.chat-header { font-weight: 600; font-size: 1.2rem; margin-bottom: 0.5rem;}
+.chat-box { flex: 1; overflow-y: auto; padding: 1rem; margin-bottom: 1rem; border-radius: 12px; display: flex; flex-direction: column;}
+.message-wrapper { display: flex; margin-bottom: 8px; align-items: flex-end;}
+.message-wrapper.sent { justify-content: flex-end; }
+.message-wrapper.received { justify-content: flex-start; }
+
+.msg { max-width: 75%; padding: 0.8rem 1.2rem; border-radius: 18px; position: relative; word-wrap: break-word; font-size: 0.95rem; line-height: 1.3; background: rgba(255,255,255,0.15); backdrop-filter: blur(12px);}
+.sent .msg { background: rgba(200,50,180,0.85); color: white; border-bottom-right-radius: 4px;}
+.received .msg { background: rgba(255,255,255,0.15); color: white; border-bottom-left-radius: 4px;}
+
+.timestamp { font-size: 0.7rem; color: white; margin-top: 4px; display: flex; justify-content: flex-end; align-items: center; gap: 4px;}
+.message-tick { font-size: 0.7rem; color: white; }
+.message-tick.read { color: #4fc3f7; }
+
+.circles { display: flex; gap: 4px; margin-bottom: 4px; }
+.circle { width: 15px; height: 15px; border-radius: 50%; background-color: gray; }
+.circle.red { background-color: #ff7f7f; }
+.circle.yellow { background-color: #fff38f; }
+.circle.green { background-color: #7fff7f; }
+
+.input-area { display: flex; align-items: center; gap: 0.5rem; padding: 0.8rem; border-top: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); border-radius: 12px; position: relative; backdrop-filter: blur(12px);}
+.input-area input { flex: 1; padding: 0.7rem; border: none; border-radius: 12px; outline: none; background: transparent; color: white; }
+.input-area button, .input-area i { background: none; border: none; color: white; font-size: 1.2rem; cursor: pointer; }
+
+.emoji-bar { display: none; position: absolute; bottom: 60px; left: 10px; background: rgba(0,0,0,0.8); padding: 0.5rem; border-radius: 12px; font-size: 1.2rem; max-width: 250px; flex-wrap: wrap; gap: 0.3rem;}
+.emoji-bar span { cursor: pointer; padding: 2px;}
+.emoji-bar span:hover { background: rgba(255,255,255,0.2); border-radius: 6px;}
+</style>
 </head>
 <body>
 
 <nav class="navbar navbar-expand-lg">
   <div class="container-fluid">
-    <a class="navbar-brand d-flex align-items-center" href="#">
-      <h3 class="mb-0">CrypticComm</h3>
+    <a class="navbar-brand d-flex align-items-center" href="{% url 'homepage' %}">
+      <h3 class="mb-0"><i class="fa fa-lock"></i> CrypticComm</h3>
     </a>
     <div class="collapse navbar-collapse">
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-        <li class="nav-item"><a class="nav-link active" href="/homepage">Home</a></li>
-        <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" id="contactsDropdown" role="button" data-bs-toggle="dropdown">Contacts</a>
-          <ul class="dropdown-menu">
-            {% if users %}
-              {% for u in users %}
-                <li><a class="dropdown-item" href="#">{{ u.username }}<br><small>{{ u.email }}</small></a></li>
-              {% endfor %}
-            {% else %}
-              <li><span class="dropdown-item text-muted">No contacts yet</span></li>
-            {% endif %}
-          </ul>
-        </li>
-        <li class="nav-item position-relative">
-          <a class="nav-link" href="/inboxpage">
-            Inbox
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-              {{ messages_data|length }}
-            </span>
-          </a>
-        </li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'homepage' %}"><i class="fa fa-home"></i> Home</a></li>
+        <li class="nav-item"><a class="nav-link active" href="{% url 'inboxpage' %}"><i class="fa fa-inbox"></i> Inbox</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'aboutus' %}"><i class="fa fa-info-circle"></i> About Us</a></li>
       </ul>
       <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
-        <li class="nav-item"><a class="nav-link text-danger fw-bold" href="/logout/">Logout</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'profilepage' %}"><i class="fa fa-user"></i> Profile</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'settingspage' %}"><i class="fa fa-cog"></i> Settings</a></li>
+        {% if user.is_authenticated %}
+        <li class="nav-item"><a class="nav-link text-danger fw-bold" href="{% url 'logoutpage' %}">Logout</a></li>
+        {% else %}
+        <li class="nav-item"><a class="nav-link" href="{% url 'loginpage' %}"><i class="fa fa-sign-in-alt"></i> Login</a></li>
+        {% endif %}
       </ul>
     </div>
   </div>
 </nav>
 
-<div class="table-container">
-  <table class="table table-bordered table-hover shadow mx-auto">
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>Sender</th>
-        <th>Message</th>
-        <th>Classification</th>
-        <th>Hash</th>
-        <th>Date/Time</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% if messages_data %}
-        {% for msg in messages_data %}
-          <tr>
-            <td>{{ forloop.counter }}</td>
-            <td>{{ msg.sender_username }}</td>
-            <td style="position: relative;">
-              <span class="blurred-text" id="msg-{{ forloop.counter0 }}">••••••••••••</span>
-              <button class="unlock-btn" onclick="showDecrypted({{ forloop.counter0 }}, '{{ msg.text|escapejs }}')">🔒</button>
-              <div id="popup-{{ forloop.counter0 }}" class="popup hidden"></div>
-            </td>
-            <td>{{ msg.classification }}</td>
-            <td>{{ msg.hash }}</td>
-            <td>{{ msg.created_at }}</td>
-          </tr>
-        {% endfor %}
-      {% else %}
-        <tr><td colspan="6" class="no-msg-row">No messages yet</td></tr>
-      {% endif %}
-    </tbody>
-  </table>
+<div class="inbox-wrapper">
+    <div class="sidebar">
+        <h5>Chats</h5>
+        <ul class="chat-list" id="chatList">
+            {% for user in users %}
+                <li data-user="{{ user.username }}">
+                    <i class="fas fa-user"></i> {{ user.username|default:"Unknown User" }}
+                </li>
+            {% empty %}
+                <li>No users found</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div class="chat-area">
+        <div class="chat-header" id="chatHeader">
+            Select a user to chat
+        </div>
+
+        <div class="chat-box" id="chatBox"></div>
+
+        <div class="input-area">
+            <input type="text" id="chatInput" placeholder="Type a message..." />
+            <button id="attach-btn"><i class="fa fa-paperclip"></i></button>
+            <i id="emoji-btn" class="fa fa-smile"></i>
+            <button id="send-btn"><i class="fa fa-paper-plane"></i></button>
+            <div class="emoji-bar" id="emoji-bar">
+                <span>😀</span><span>😂</span><span>😍</span><span>😎</span><span>😢</span>
+                <span>👍</span><span>🔥</span><span>❤️</span><span>🎉</span><span>🚀</span>
+            </div>
+            <input type="file" id="fileInput" style="display:none;">
+        </div>
+    </div>
 </div>
 
+{{ messages_data|default:"{}"|json_script:"messages-data" }}
+
 <script>
-function showDecrypted(index, decryptedText) {
-  const popup = document.getElementById(`popup-${index}`);
-  popup.innerHTML = `
-    <p><strong>Decrypted Message:</strong></p>
-    <p>${decryptedText}</p>
-    <button class="btn btn-sm btn-secondary" onclick="closePopup(${index})">Close</button>
-  `;
-  popup.classList.remove("hidden");
+const messagesData = JSON.parse(document.getElementById('messages-data').textContent || "{}");
+const chatBox = document.getElementById('chatBox');
+const chatInput = document.getElementById('chatInput');
+const sendBtn = document.getElementById('send-btn');
+const emojiBtn = document.getElementById('emoji-btn');
+const emojiBar = document.getElementById('emoji-bar');
+const attachBtn = document.getElementById('attach-btn');
+const fileInput = document.getElementById('fileInput');
+const chatHeader = document.getElementById('chatHeader');
+const chatList = document.getElementById('chatList');
+
+let activeUser = null;
+
+// CSRF helper
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let c of cookies) {
+            const cookie = c.trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
 }
-function closePopup(index) {
-  document.getElementById(`popup-${index}`).classList.add("hidden");
+const csrftoken = getCookie('csrftoken');
+
+// Load chat
+// Load chat
+function loadChat(user) {
+    activeUser = user;
+    chatBox.innerHTML = '';
+    chatHeader.textContent = user;
+
+    const msgs = messagesData[user] || [];
+    msgs.forEach(m => {
+        const type = (m.sender === "{{ user.username }}") ? 'sent' : 'received';
+        // Use 'created_at' instead of 'timestamp'
+        addMessageToDOM(m.text, type, m.created_at, m.id, m.classification);
+    });
+
+    chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
 }
+
+function addMessageToDOM(message, type, isoTime=null, id=null, classification='low'){
+    const now = isoTime ? new Date(isoTime) : new Date();
+    const options = { timeZone: 'Asia/Kolkata', hour12: false };
+    const time = new Intl.DateTimeFormat('en-GB', { ...options, hour: '2-digit', minute: '2-digit', day:'2-digit', month:'2-digit', year:'numeric' }).format(now);
+
+    const wrapper = document.createElement('div');
+    wrapper.className = `message-wrapper ${type}`;
+
+    const msgDiv = document.createElement('div');
+    msgDiv.className = 'msg';
+
+    // Circle + badge
+    const circlesWrapper = document.createElement('div');
+    circlesWrapper.className = 'circles';
+    const circle = document.createElement('div');
+    circle.className = 'circle';
+    let labelColor = '#ccc';
+    if(classification === 'low') { circle.classList.add('green'); labelColor = 'rgba(127,255,127,0.2)'; }
+    else if(classification === 'medium') { circle.classList.add('yellow'); labelColor = 'rgba(255,243,143,0.2)'; }
+    else if(classification === 'high') { circle.classList.add('red'); labelColor = 'rgba(255,127,127,0.2)'; }
+    circlesWrapper.appendChild(circle);
+
+    const label = document.createElement('span');
+    label.className = 'circle-label';
+    label.textContent = `[${classification}]`;
+    label.style.backgroundColor = labelColor;
+    label.style.padding = '1px 4px';
+    label.style.borderRadius = '4px';
+    label.style.fontSize = '0.65rem';
+    label.style.color = '#fff';
+    circlesWrapper.appendChild(label);
+
+    msgDiv.appendChild(circlesWrapper);
+
+   // Message text
+const textSpan = document.createElement('span');
+textSpan.textContent = message;
+
+// --- Add blur + lock only for received messages ---
+if(type === 'received'){
+    textSpan.style.filter = 'blur(5px)';
+    textSpan.style.transition = 'filter 0.3s ease';
+
+    const lockIcon = document.createElement('i');
+    lockIcon.className = 'fa fa-lock ms-2';
+    lockIcon.title = 'Click to view message';
+    lockIcon.style.cursor = 'pointer';
+    msgDiv.appendChild(lockIcon);
+
+    lockIcon.addEventListener('click', () => {
+        textSpan.style.filter = 'none';
+        lockIcon.className = 'fa fa-unlock ms-2';
+    });
+}
+
+// Append the textSpan to msgDiv after adding blur/lock
+msgDiv.appendChild(textSpan);
+
+
+    // Timestamp
+    const tsDiv = document.createElement('div');
+    tsDiv.className = 'timestamp';
+    tsDiv.textContent = time;
+    msgDiv.appendChild(tsDiv);
+
+    wrapper.appendChild(msgDiv);
+    chatBox.appendChild(wrapper);
+    chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
+}
+
+
+
+// Send text message
+sendBtn.addEventListener('click', async () => {
+    const msg = chatInput.value.trim();
+    if (!msg || !activeUser) return;
+
+    addMessageToDOM(msg, 'sent', new Date().toISOString());
+    chatInput.value = '';
+
+    const result = await fetch("{% url 'send_message' %}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+        body: JSON.stringify({ receiver: activeUser, message: msg })
+    }).then(r => r.json());
+
+    if (result.status === 'success') {
+        alert(result.msg);
+        if (!messagesData[activeUser]) messagesData[activeUser] = [];
+        messagesData[activeUser].push({
+            text: msg,
+            sender: "{{ user.username }}",
+            timestamp: new Date().toISOString(),
+            classification: 'low'
+        });
+    } else {
+        alert("Failed to send message: " + result.error);
+    }
+});
+
+// File upload as message
+attachBtn.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', async () => {
+    const file = fileInput.files[0];
+    if (!file || !activeUser) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('receiver', activeUser);
+
+    try {
+        const resp = await fetch("{% url 'send_file' %}", {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrftoken },
+            body: formData
+        });
+        const result = await resp.json();
+
+        if (result.status === 'success') {
+            alert(result.msg);
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'message-wrapper sent';
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'msg';
+
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(file);
+            link.download = file.name;
+            link.textContent = "📎 " + file.name;
+            link.style.color = "white";
+
+            const now = new Date();
+            const options = { timeZone: 'Asia/Kolkata', hour12: false };
+            const time = new Intl.DateTimeFormat('en-GB', { ...options, hour: '2-digit', minute: '2-digit', day:'2-digit', month:'2-digit', year:'numeric' }).format(now);
+
+            msgDiv.appendChild(link);
+            msgDiv.innerHTML += `<div class="timestamp">${time}</div>`;
+            wrapper.appendChild(msgDiv);
+            chatBox.appendChild(wrapper);
+            chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
+
+            if (!messagesData[activeUser]) messagesData[activeUser] = [];
+            messagesData[activeUser].push({
+                text: "📎 " + file.name,
+                sender: "{{ user.username }}",
+                timestamp: now.toISOString(),
+                classification: 'file'
+            });
+
+            fileInput.value = '';
+        } else {
+            alert("Failed to send file: " + result.error);
+        }
+    } catch (err) {
+        alert("Error sending file: " + err);
+    }
+});
+
+// Emoji picker
+emojiBtn.addEventListener('click', () => {
+    emojiBar.style.display = emojiBar.style.display === 'flex' ? 'none' : 'flex';
+    emojiBar.style.flexDirection = 'row';
+});
+document.querySelectorAll('.emoji-bar span').forEach(emoji => {
+    emoji.addEventListener('click', () => { chatInput.value += emoji.textContent; });
+});
+
+// Enter key send
+chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendBtn.click(); });
+
+// Init first chat
+(function initDefault() {
+    const first = chatList.querySelector('li');
+    if (first) {
+        const uname = first.getAttribute('data-user');
+        first.classList.add('active');
+        loadChat(uname);
+    } else {
+        chatHeader.textContent = "No chats";
+    }
+})();
 </script>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
 </body>
 </html>

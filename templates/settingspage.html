@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Settings - CrypticComm</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+    body {
+        background: radial-gradient(circle at top left, rgba(70, 160, 255, 0.35), transparent 60%),
+                    radial-gradient(circle at bottom right, rgba(160, 70, 240, 0.35), transparent 60%),
+                    radial-gradient(circle at top right, rgba(255, 105, 180, 0.35), transparent 60%),
+                    radial-gradient(circle at center, #0a0a60, #152040 70%, #0d0d0d);
+        color: white;
+        font-family: 'Poppins', sans-serif;
+        min-height: 100vh;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .navbar {
+        padding-top: 1.2rem; 
+        padding-bottom: 1.2rem; 
+        background: rgba(255, 255, 255, 0.1) !important;
+        backdrop-filter: blur(12px);
+        border-radius: 16px;
+        margin: 0.5rem 1rem;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    .navbar-brand h3 { color: #fff; font-family: 'Orbitron', sans-serif; font-weight: 600; display: flex; align-items: center;}
+    .navbar-brand h3 i { margin-right: 10px;}
+    .nav-link { color: white !important; font-weight: 500;}
+    .nav-link:hover { text-decoration: underline;}
+    .nav-link i { margin-right: 5px; }
+
+    /* Settings Page WhatsApp Style */
+    .settings-wrapper {
+        flex: 1;
+        padding: 2rem 1rem;
+        display: flex;
+        justify-content: center;
+    }
+    .settings-card {
+        background: rgba(255,255,255,0.08);
+        backdrop-filter: blur(14px);
+        border-radius: 20px;
+        width: 100%;
+        max-width: 600px;
+        box-shadow: 0 4px 25px rgba(0,0,0,0.4);
+        overflow: hidden;
+    }
+    .settings-header {
+        text-align: center;
+        padding: 2rem 1rem;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .settings-header h3 {
+        font-family: 'Orbitron', sans-serif;
+        font-weight: 600;
+        margin-bottom: 0.2rem;
+    }
+    .settings-info {
+        padding: 1rem 1.5rem;
+    }
+    .setting-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 0;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        cursor: pointer;
+        transition: 0.3s;
+    }
+    .setting-item:hover {
+        background: rgba(255,255,255,0.1);
+        border-radius: 12px;
+    }
+    .setting-item i {
+        font-size: 1.3rem;
+        margin-right: 1rem;
+        color: #ff80df;
+    }
+    .setting-text h6 {
+        margin: 0;
+        font-weight: 600;
+    }
+    .setting-text p {
+        margin: 0;
+        font-size: 0.9rem;
+        color: #bbb;
+    }
+</style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg">
+  <div class="container-fluid">
+    <a class="navbar-brand d-flex align-items-center" href="{% url 'homepage' %}">
+      <h3 class="mb-0"><i class="fa fa-lock"></i> CrypticComm</h3>
+    </a>
+    <div class="collapse navbar-collapse">
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        <li class="nav-item"><a class="nav-link" href="{% url 'homepage' %}"><i class="fa fa-home"></i> Home</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'inboxpage' %}"><i class="fa fa-inbox"></i> Inbox</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'aboutus' %}"><i class="fa fa-info-circle"></i> About Us</a></li>
+      </ul>
+      <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+        <li class="nav-item"><a class="nav-link" href="{% url 'profilepage' %}"><i class="fa fa-user"></i> Profile</a></li>
+        <li class="nav-item"><a class="nav-link active" href="{% url 'settingspage' %}"><i class="fa fa-cog"></i> Settings</a></li>
+        {% if user.is_authenticated %}
+        <li class="nav-item"><a class="nav-link text-danger fw-bold" href="{% url 'logoutpage' %}">Logout</a></li>
+        {% else %}
+        <li class="nav-item"><a class="nav-link" href="{% url 'loginpage' %}"><i class="fa fa-sign-in-alt"></i> Login</a></li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<!-- Settings Section -->
+<div class="settings-wrapper">
+  <div class="settings-card">
+    <div class="settings-header">
+      <h3>Settings</h3>
+    </div>
+
+    <div class="settings-info">
+      <div class="setting-item">
+        <div class="setting-text">
+          <h6>Account</h6>
+          <p>Manage your account information</p>
+        </div>
+        <i class="fa fa-chevron-right"></i>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-text">
+          <h6>Privacy</h6>
+          <p>Change your privacy settings</p>
+        </div>
+        <i class="fa fa-chevron-right"></i>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-text">
+          <h6>Notifications</h6>
+          <p>Manage notification preferences</p>
+        </div>
+        <i class="fa fa-chevron-right"></i>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-text">
+          <h6>Appearance</h6>
+          <p>Change theme and colors</p>
+        </div>
+        <i class="fa fa-chevron-right"></i>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-text">
+          <h6>Security</h6>
+          <p>Update password and security settings</p>
+        </div>
+        <i class="fa fa-chevron-right"></i>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

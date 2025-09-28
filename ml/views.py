@@ -22,7 +22,6 @@ LABEL_TO_CONF = {
     "LABEL_0": "high",
     "LABEL_1": "low",
     "LABEL_2": "medium",
-    # add/change if your model uses different LABEL_X names
 }
 
 # Encryption text per confidentiality (returned to frontend)
@@ -46,12 +45,11 @@ def classify_view(request):
     }
     """
     try:
-        # 1) get message string from POST form, POST JSON, or GET
+        # 1) Get message string
         message = ""
         if request.method == "POST":
             message = request.POST.get("message", "").strip()
             if not message:
-                # try JSON body
                 try:
                     body = request.body.decode("utf-8")
                     if body:
@@ -66,7 +64,7 @@ def classify_view(request):
         if not message:
             return JsonResponse({"error": "No message provided"}, status=400)
 
-        # 2) tokenize + infer
+        # 2) Tokenize + infer
         inputs = tokenizer(message, return_tensors="pt", truncation=True, padding=True)
         inputs = {k: v.to(device) for k, v in inputs.items()}
         with torch.no_grad():
@@ -77,18 +75,17 @@ def classify_view(request):
         pred_index = int(torch.argmax(logits, dim=1).item())
         probs_list = probs.cpu().numpy().tolist()[0]
 
-        # 3) raw label (from model config if available)
-        raw_label = None
+        # 3) Raw label
         if hasattr(model.config, "id2label") and isinstance(model.config.id2label, dict):
             raw_label = model.config.id2label.get(pred_index, f"LABEL_{pred_index}")
         else:
             raw_label = f"LABEL_{pred_index}"
 
-        # 4) map to app-level confidentiality and encryption text
-        mapped_conf = LABEL_TO_CONF.get(raw_label, "low")  # default low if unknown
+        # 4) Map to confidentiality + encryption
+        mapped_conf = LABEL_TO_CONF.get(raw_label, "low")
         encryption = ENCRYPTION_BY_CONF.get(mapped_conf, "Fernet")
 
-        # 5) return full debug + mapped response
+        # 5) Return response
         return JsonResponse({
             "label": raw_label,
             "index": pred_index,
@@ -97,5 +94,4 @@ def classify_view(request):
             "encryption": encryption
         })
     except Exception as e:
-        # return error text so you can see what went wrong
         return JsonResponse({"error": str(e)}, status=500)

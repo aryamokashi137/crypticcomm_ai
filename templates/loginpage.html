@@ -1,73 +1,120 @@
 <!DOCTYPE html>
 <html lang='en'>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login page</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-    <style>
-        body { 
-            background: radial-gradient(circle at top left, rgba(30,144,255,0.4), transparent 60%),
-                        radial-gradient(circle at bottom right, rgba(138,43,226,0.4), transparent 60%),
-                        radial-gradient(circle at center, #0a0a6b, #1b2a49 70%, #000000);
-            background-attachment: fixed;
-            background-image: radial-gradient(rgba(255,255,255,0.07) 1px, transparent 1px),
-                              radial-gradient(circle at top left, rgba(30,144,255,0.4), transparent 60%),
-                              radial-gradient(circle at bottom right, rgba(138,43,226,0.4), transparent 60%),
-                              radial-gradient(circle at center, #0a0a6b, #1b2a49 70%, #000000);
-            background-size: 40px 40px, auto, auto, auto;
-            color: white; 
-            height: 100vh; 
-            margin: 0; 
-            display: flex; 
-            flex-direction: column; 
-        }
-        .navbar { padding-top: 1.5rem; padding-bottom: 1.5rem; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login page</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+    body { 
+        background: radial-gradient(circle at top left, rgba(70, 160, 255, 0.35), transparent 60%),
+                    radial-gradient(circle at bottom right, rgba(160, 70, 240, 0.35), transparent 60%),
+                    radial-gradient(circle at top right, rgba(255, 105, 180, 0.35), transparent 60%),
+                    radial-gradient(circle at center, #0a0a60, #152040 70%, #0d0d0d);
+        background-attachment: fixed;
+        color: white; 
+        height: 100vh; 
+        margin: 0; 
+        display: flex; 
+        flex-direction: column; 
+    }
 
-        .form-container { 
-            flex: 1; 
-            display: flex; 
-            justify-content: center; 
-            align-items: flex-start;   
-            padding-top: 60px;         
-        }
+    .navbar {
+        padding-top: 1.2rem; 
+        padding-bottom: 1.2rem; 
+        background: rgba(255, 255, 255, 0.1) !important;
+        backdrop-filter: blur(12px);
+        border-radius: 16px;
+        margin: 0.5rem 1rem;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    .navbar-brand h3 {
+        color: #fff;
+        font-family: 'Orbitron', sans-serif;
+        font-weight: 600;
+        letter-spacing: 1px;
+        display: flex;
+        align-items: center;
+    }
+    .navbar-brand h3 i {
+        margin-right: 10px;
+        color: #fff;
+    }
+    .nav-link {
+        color: white !important;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+    }
+    .nav-link i { margin-right: 6px; }
+    .nav-link:hover { text-decoration: underline; }
 
-        .card { 
-            background-color: #fff; 
-            border-radius: 10px; 
-            padding: 2rem 1.5rem 2.5rem 1.5rem; 
-            color: black; 
-            width: 100%; 
-            max-width: 400px; 
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3); 
-        }
+    .form-container { 
+        flex: 1; 
+        display: flex; 
+        justify-content: center; 
+        align-items: flex-start;   
+        padding-top: 4rem;       
+    }
 
-        h4.text-center.mb-3 { color: black !important; }
-        label.form-check-label { color: black !important; }
+    .login-box {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(14px);
+        width: 100%; max-width: 420px;
+        padding: 2rem;
+        border-radius: 16px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        color: #fff;
+    }
+    .login-box h4 {
+        text-align: center;
+        margin-bottom: 1.5rem;
+        font-weight: 600;
+        font-size: 1.6rem;
+        font-family: 'Poppins', sans-serif;
+    }
 
-        .btn-login {
-            background-color: #198754;
-            border-color: #198754;
-            color: white;
-            width: 60%;
-            display: block;
-            margin: 1.5rem auto 0;
-            font-weight: 600;
-        }
-        .btn-login:hover {
-            background-color: #146c43;
-            border-color: #146c43;
-            color: white;
-        }
+    .form-control {
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.2);
+        color: #fff;
+    }
+    .form-control::placeholder { color: rgba(255,255,255,0.8); }
+    .form-label { font-weight: 500; margin-top: 0.5rem; margin-bottom: 0.2rem; color: #fff; font-family: 'Poppins', sans-serif; }
 
-        .form-label.text-dark { color: #242424; }
-    </style>
+    .btn-login { 
+        width: 160px; 
+        background-color: #800080;
+        border: none; 
+        font-weight: 600; 
+        font-size: 1rem; 
+        color: white; 
+        padding: 0.6rem 1rem; 
+        border-radius: 0.6rem; 
+        cursor: pointer; 
+        display: block; 
+        margin: 2rem auto 0 auto; 
+        text-align: center; 
+        transition: 0.3s ease; 
+        backdrop-filter: blur(8px);
+        font-family: 'Poppins', sans-serif;
+        box-shadow: 0 4px 15px rgba(128, 0, 128, 0.5);
+    }
+    .btn-login:hover { 
+        background-color: #550055;
+        box-shadow: 0 6px 20px rgba(128, 0, 128, 0.6);
+    }
+</style>
 </head>
 <body>
-<nav class="navbar navbar-expand-lg bg-body-tertiary">
+
+<nav class="navbar navbar-expand-lg">
   <div class="container-fluid">
-    <a class="navbar-brand d-flex align-items-center" href="/">
-      <h3 class="mb-0">CrypticComm</h3>
+    <a class="navbar-brand d-flex align-items-center" href="{% url 'homepage' %}">
+      <h3 class="mb-0"><i class="fa fa-lock"></i> CrypticComm</h3>
     </a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" 
             data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" 
@@ -76,55 +123,52 @@
     </button>
     <div class="collapse navbar-collapse" id="navbarSupportedContent">
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-        <li class="nav-item">
-          <a class="nav-link active" aria-current="page" href="/homepage">Home</a>
-        </li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'homepage' %}"><i class="fa fa-home"></i> Home</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'inboxpage' %}"><i class="fa fa-inbox"></i> Inbox</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'aboutus' %}"><i class="fa fa-info-circle"></i> About Us</a></li>
       </ul>
       <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
-        <li class="nav-item">
-          <a class="nav-link" href="/loginpage">Login</a>
-        </li>
+        {% if user.is_authenticated %}
+        <li class="nav-item"><a class="nav-link text-danger fw-bold" href="{% url 'logoutpage' %}"><i class="fa fa-sign-out-alt"></i> Logout</a></li>
+        {% else %}
+        <li class="nav-item"><a class="nav-link" href="{% url 'loginpage' %}"><i class="fa fa-sign-in-alt"></i> Login</a></li>
+        {% endif %}
       </ul>
     </div>
   </div>
 </nav>
 
 <div class="form-container">
-    <div class="card">
-        <h4 class="text-center mb-3">Log In</h4>
+    <div class="login-box">
+        <h4>Log In</h4>
 
         {% if messages %}
-            <div>
-                {% for message in messages %}
-                  <p style="color: {% if message.tags == 'success' %}green{% else %}red{% endif %}; font-weight: bold;">
-                      {{ message }}
-                  </p>
-                {% endfor %}
-            </div>
+            {% for message in messages %}
+              <p style="color: {% if message.tags == 'success' %}green{% else %}red{% endif %}; font-weight: bold;">
+                  {{ message }}
+              </p>
+            {% endfor %}
         {% endif %}
 
         <form method="POST" action="{% url 'loginpage' %}" novalidate>
             {% csrf_token %}
             <div class="mb-3">
-                <label for="email" class="form-label text-dark"><b>Email ID</b></label>
-                <input type="email" name="email" class="form-control" id="email" placeholder="name@example.com" required />
+                <label for="email" class="form-label"><b>Email ID</b></label>
+                <input type="email" name="email" class="form-control" id="email" placeholder="name@gmail.com" required>
             </div>
-            <div class="mb-3 position-relative">
-                <label for="password" class="form-label text-dark"><b>Password</b></label>
-                <input type="password" name="password" class="form-control" id="password" required />
-                <div class="form-text text-muted mt-1" style="font-size: 0.810em;">
-                    (At least 8 chars, incl. uppercase, lowercase, numbers, special char)
-                </div>
+            <div class="mb-3">
+                <label for="password" class="form-label"><b>Password</b></label>
+                <input type="password" name="password" class="form-control" id="password" required>
                 <div class="form-check mt-2">
-                  <input class="form-check-input" type="checkbox" id="showPasswordToggle" />
-                  <label class="form-check-label" for="showPasswordToggle">Show Password</label>
+                  <input class="form-check-input" type="checkbox" id="showPasswordToggle">
+                  <label class="form-check-label text-white" for="showPasswordToggle">Show Password</label>
                 </div>
             </div>
-            <button type="submit" class="btn btn-login">Login</button>
+            <button type="submit" class="btn-login">Login</button>
         </form>
 
-        <p class="text-center mt-3" style="color: #242424;">
-            Don’t have an account? <a href="{% url 'homepage' %}">Register here</a>
+        <p class="text-center mt-3">
+            Don’t have an account? <a href="{% url 'homepage' %}" class="text-info">Register here</a>
         </p>
     </div>
 </div>
@@ -137,5 +181,6 @@
       passwordInput.type = toggleCheckbox.checked ? 'text' : 'password';
     });
 </script>
+
 </body>
 </html>

@@ -7,11 +7,11 @@ class MessageAdmin(admin.ModelAdmin):
         "id", 
         "sender", 
         "receiver", 
-        "classification",  # ✅ corrected
+        "classification", 
         "hash_value", 
         "delivered", 
         "is_read", 
         "created_at"
     )
-    list_filter = ("classification", "delivered", "is_read")  # ✅ corrected
+    list_filter = ("classification", "delivered", "is_read")  
     search_fields = ("sender__username", "receiver__username", "hash_value")

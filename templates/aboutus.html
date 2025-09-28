@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>About Us - CrypticComm</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+    body {
+        background: radial-gradient(circle at top left, rgba(70, 160, 255, 0.35), transparent 60%),
+                    radial-gradient(circle at bottom right, rgba(160, 70, 240, 0.35), transparent 60%),
+                    radial-gradient(circle at top right, rgba(255, 105, 180, 0.35), transparent 60%),
+                    radial-gradient(circle at center, #0a0a60, #152040 70%, #0d0d0d);
+        color: white;
+        font-family: 'Poppins', sans-serif;
+        min-height: 100vh;
+        margin: 0;
+    }
+
+    /* Glassy navbar */
+    .navbar {
+        padding-top: 1.2rem; 
+        padding-bottom: 1.2rem; 
+        background: rgba(255, 255, 255, 0.1) !important;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-radius: 16px;
+        margin: 0.5rem 1rem;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    .navbar-brand h3 {
+        color: #fff;
+        font-family: 'Orbitron', sans-serif;
+        font-weight: 600;
+        letter-spacing: 1px;
+        display: flex;
+        align-items: center;
+    }
+    .navbar-brand h3 i {
+        margin-right: 10px;
+        color: #fff;
+    }
+    .nav-link {
+        color: white !important;
+        font-weight: 500;
+    }
+    .nav-link:hover {
+        text-decoration: underline;
+    }
+    .nav-link i { margin-right: 5px; }
+
+    /* About container */
+    .container {
+        margin-top: 5rem;
+        padding: 2rem;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 16px;
+        backdrop-filter: blur(12px);
+    }
+    h1 {
+        font-size: 2rem;
+        margin-bottom: 1.5rem;
+    }
+    h1 span.cryptic {
+        font-family: 'Orbitron', sans-serif;
+        font-weight: 600;
+    }
+    p {
+        font-size: 1.1rem;
+        line-height: 1.6;
+    }
+    ul.tech-list {
+        margin-top: 0.5rem;
+        padding-left: 1.5rem;
+    }
+    .contact-mail {
+        margin-top: 1.5rem;
+        font-weight: 600;
+        color: #ffd700;
+    }
+</style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg">
+  <div class="container-fluid">
+    <a class="navbar-brand d-flex align-items-center" href="{% url 'homepage' %}">
+      <h3 class="mb-0"><i class="fa fa-lock"></i> CrypticComm</h3>
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" 
+            data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" 
+            aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        <li class="nav-item"><a class="nav-link text-white" href="{% url 'homepage' %}"><i class="fa fa-home"></i> Home</a></li>
+        <li class="nav-item"><a class="nav-link text-white" href="{% url 'inboxpage' %}"><i class="fa fa-inbox"></i> Inbox</a></li>
+        <li class="nav-item"><a class="nav-link text-white" href="{% url 'aboutus' %}"><i class="fa fa-info-circle"></i> About Us</a></li>
+      </ul>
+      <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+        <li class="nav-item"><a class="nav-link text-white" href="{% url 'profilepage' %}"><i class="fa fa-user"></i> Profile</a></li>
+        <li class="nav-item"><a class="nav-link text-white" href="{% url 'settingspage' %}"><i class="fa fa-cog"></i> Settings</a></li>
+        {% if user.is_authenticated %}
+        <li class="nav-item"><a class="nav-link text-danger fw-bold" href="{% url 'logoutpage' %}">Logout</a></li>
+        {% else %}
+        <li class="nav-item"><a class="nav-link text-white" href="{% url 'loginpage' %}"><i class="fa fa-sign-in-alt"></i> Login</a></li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+    <h1><span>About </span><span class="cryptic">CrypticComm</span></h1>
+    <p>
+        CrypticComm is a secure AI-powered messaging platform that automatically classifies 
+        and encrypts messages based on their sensitivity level. The system integrates machine 
+        learning for classification, multi-layer encryption for confidentiality, and a modern 
+        Django-based web application for usability.
+    </p>
+    <p>
+        The platform ensures sensitive information is classified, encrypted, transmitted, 
+        and decrypted with the correct level of protection, without burdening users with 
+        technical details. It automates message classification, applies the appropriate 
+        encryption, and delivers a clean, user-friendly interface.
+    </p>
+    <p>
+        <strong>Technologies Used:</strong>
+        <ul class="tech-list">
+            <li>Frontend: HTML5, CSS3, Bootstrap 5, JavaScript</li>
+            <li>Backend: Django Framework (Python)</li>
+            <li>Database: MySQL</li>
+            <li>Machine Learning: Python scikit-learn, TensorFlow (for message classification)</li>
+            <li>Real-time Messaging: WebSockets (Django Channels)</li>
+        </ul>
+    </p>
+    <p>
+        <strong>Cryptographic Algorithms Implemented:</strong>
+        <ul class="tech-list">
+            <li>Symmetric Encryption: AES-256</li>
+            <li>Asymmetric Encryption: RSA-2048</li>
+            <li>Hashing: SHA-256 for integrity verification</li>
+            <li>Hybrid Encryption for efficient message security</li>
+        </ul>
+    </p>
+    <p>
+        Our goal is to provide secure and seamless communication while maintaining the highest 
+        standards of privacy and confidentiality. This solution is suitable for enterprise 
+        communication, healthcare messaging, or government applications.
+    </p>
+    <p class="contact-mail">Contact Us: <a href="mailto:crypticcomm.notify@gmail.com">crypticcomm.notify@gmail.com</a></p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

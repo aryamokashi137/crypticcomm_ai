@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profile - CrypticComm</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+    body {
+        background: radial-gradient(circle at top left, rgba(70, 160, 255, 0.35), transparent 60%),
+                    radial-gradient(circle at bottom right, rgba(160, 70, 240, 0.35), transparent 60%),
+                    radial-gradient(circle at top right, rgba(255, 105, 180, 0.35), transparent 60%),
+                    radial-gradient(circle at center, #0a0a60, #152040 70%, #0d0d0d);
+        color: white;
+        font-family: 'Poppins', sans-serif;
+        min-height: 100vh;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .navbar {
+        padding-top: 1.2rem; 
+        padding-bottom: 1.2rem; 
+        background: rgba(255, 255, 255, 0.1) !important;
+        backdrop-filter: blur(12px);
+        border-radius: 16px;
+        margin: 0.5rem 1rem;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    .navbar-brand h3 { color: #fff; font-family: 'Orbitron', sans-serif; font-weight: 600; display: flex; align-items: center;}
+    .navbar-brand h3 i { margin-right: 10px;}
+    .nav-link { color: white !important; font-weight: 500;}
+    .nav-link:hover { text-decoration: underline;}
+    .nav-link i { margin-right: 5px; }
+
+    /* Profile Page WhatsApp Style */
+    .profile-wrapper {
+        flex: 1;
+        padding: 2rem 1rem;
+        display: flex;
+        justify-content: center;
+    }
+    .profile-card {
+        background: rgba(255,255,255,0.08);
+        backdrop-filter: blur(14px);
+        border-radius: 20px;
+        width: 100%;
+        max-width: 600px;
+        box-shadow: 0 4px 25px rgba(0,0,0,0.4);
+        overflow: hidden;
+    }
+    .profile-header {
+        text-align: center;
+        padding: 2rem 1rem;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .profile-header img {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        border: 4px solid rgba(255,255,255,0.3);
+        margin-bottom: 1rem;
+    }
+    .profile-header h3 {
+        font-family: 'Orbitron', sans-serif;
+        font-weight: 600;
+        margin-bottom: 0.2rem;
+    }
+    .profile-header p {
+        color: #bbb;
+        font-size: 0.95rem;
+    }
+
+    .profile-info {
+        padding: 1rem 1.5rem;
+    }
+    .info-item {
+        display: flex;
+        align-items: center;
+        padding: 1rem 0;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .info-item i {
+        font-size: 1.3rem;
+        margin-right: 1rem;
+        color: #ff80df;
+    }
+    .info-text h6 {
+        margin: 0;
+        font-weight: 600;
+    }
+    .info-text p {
+        margin: 0;
+        font-size: 0.9rem;
+        color: #bbb;
+    }
+    .btn-edit {
+        display: block;
+        margin: 1.5rem auto;
+        background: rgba(200,50,180,0.85);
+        border: none;
+        border-radius: 12px;
+        padding: 0.6rem 1.5rem;
+        color: white;
+        font-weight: 500;
+        transition: 0.3s;
+    }
+    .btn-edit:hover {
+        background: rgba(200,50,180,1);
+    }
+</style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg">
+  <div class="container-fluid">
+    <a class="navbar-brand d-flex align-items-center" href="{% url 'homepage' %}">
+      <h3 class="mb-0"><i class="fa fa-lock"></i> CrypticComm</h3>
+    </a>
+    <div class="collapse navbar-collapse">
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        <li class="nav-item"><a class="nav-link" href="{% url 'homepage' %}"><i class="fa fa-home"></i> Home</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'inboxpage' %}"><i class="fa fa-inbox"></i> Inbox</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'aboutus' %}"><i class="fa fa-info-circle"></i> About Us</a></li>
+      </ul>
+      <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+        <li class="nav-item"><a class="nav-link active" href="{% url 'profilepage' %}"><i class="fa fa-user"></i> Profile</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'settingspage' %}"><i class="fa fa-cog"></i> Settings</a></li>
+        {% if user.is_authenticated %}
+        <li class="nav-item"><a class="nav-link text-danger fw-bold" href="{% url 'logoutpage' %}">Logout</a></li>
+        {% else %}
+        <li class="nav-item"><a class="nav-link" href="{% url 'loginpage' %}"><i class="fa fa-sign-in-alt"></i> Login</a></li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<!-- Profile Section -->
+<div class="profile-wrapper">
+  <div class="profile-card">
+    <div class="profile-header">
+      <img src="https://via.placeholder.com/150" alt="Profile Picture">
+      <h3>{{ user.username }}</h3>
+      <p>Hey there! I am using CrypticComm.</p>
+    </div>
+
+    <div class="profile-info">
+      <div class="info-item">
+        <i class="fa fa-user"></i>
+        <div class="info-text">
+          <h6>Name</h6>
+          <p>{{ user.first_name }} {{ user.last_name }}</p>
+        </div>
+      </div>
+      <div class="info-item">
+        <i class="fa fa-envelope"></i>
+        <div class="info-text">
+          <h6>Email</h6>
+          <p>{{ user.email }}</p>
+        </div>
+      </div>
+      <div class="info-item">
+        <i class="fa fa-calendar"></i>
+        <div class="info-text">
+          <h6>Joined</h6>
+          <p>January 2025</p>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-edit"><i class="fa fa-edit"></i> Edit Profile</button>
+  </div>
+</div>
+
+</body>
+</html>

@@ -7,5 +7,11 @@ urlpatterns = [
     path("logout/", views.logoutpage, name="logoutpage"),
     path("inboxpage/", views.inboxpage, name="inboxpage"),
     path("send_message/", views.send_message, name="send_message"),
-    path("msgpage/", views.msgpage, name="msgpage"),
+    path("aboutus/", views.aboutus, name="aboutus"),
+    path("profilepage/", views.profilepage, name="profilepage"),
+    path("settingspage/", views.settingspage, name="settingspage"),
+    path("api/send_file/", views.send_file, name="send_file"),
+    path("api/decrypt_message/", views.decrypt_message_api, name="decrypt_message"),
+
 ]
+

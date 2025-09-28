@@ -1,10 +1,8 @@
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import torch
 
-# Local path to your unzipped model folder
 MODEL_PATH = "ml/msg_classifier_model"
 
-# Load tokenizer and model from local folder
 tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, local_files_only=True)
 model = AutoModelForSequenceClassification.from_pretrained(MODEL_PATH, local_files_only=True)
 model.eval()
@@ -12,37 +10,42 @@ model.eval()
 device = torch.device("cpu")
 model.to(device)
 
-# Map model index → labels
-LABELS = ["low_confidential", "medium_confidential", "highly_confidential"]
+LABEL_TO_CONF = {
+    "LABEL_0": "high",
+    "LABEL_1": "low",
+    "LABEL_2": "medium",
+}
 
-# Map labels → encryption schemes
-ENCRYPTION_BY_LABEL = {
-    "low_confidential": "Fernet",
-    "medium_confidential": "AES-256",
-    "highly_confidential": "RSA + AES Hybrid"
+ENCRYPTION_BY_CONF = {
+    "high": "RSA + AES Hybrid",
+    "medium": "AES-256",
+    "low": "Fernet"
 }
 
 def classify_message(message: str):
-    # 1) Tokenize input
     inputs = tokenizer(message, return_tensors="pt", truncation=True, padding=True)
     inputs = {k: v.to(device) for k, v in inputs.items()}
-
-    # 2) Run inference
     with torch.no_grad():
         outputs = model(**inputs)
         logits = outputs.logits
         probs = torch.nn.functional.softmax(logits, dim=-1)
 
-    # 3) Prediction
     pred_index = int(torch.argmax(logits, dim=1).item())
-    label = LABELS[pred_index]
-    encryption = ENCRYPTION_BY_LABEL[label]
     probs_list = probs.cpu().numpy().tolist()[0]
 
-    # 4) Return structured result
+    raw_label = None
+    if hasattr(model.config, "id2label") and isinstance(model.config.id2label, dict):
+        raw_label = model.config.id2label.get(pred_index, f"LABEL_{pred_index}")
+    else:
+        raw_label = f"LABEL_{pred_index}"
+
+    mapped_conf = LABEL_TO_CONF.get(raw_label, "low")
+    encryption = ENCRYPTION_BY_CONF.get(mapped_conf, "Fernet")
+
     return {
-        "label": label,
+        "label": raw_label,
         "index": pred_index,
+        "mapped_conf": mapped_conf,
         "probs": probs_list,
         "encryption": encryption
     }
