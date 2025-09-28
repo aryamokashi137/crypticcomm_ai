@@ -5,7 +5,7 @@ from email.mime.text import MIMEText
 
 # Replace with your Gmail app email + app password
 EMAIL_ADDRESS = "crypticcomm.notify@gmail.com"
-EMAIL_PASSWORD = "chbc zihl quew cpyq"   # your generated App Password
+EMAIL_PASSWORD = "***"   # your generated App Password
 
 def send_test_email():
     try:
