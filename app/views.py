@@ -113,26 +113,51 @@ def msgpage(request):
 def inboxpage(request):
     """
     Pass structured messages_data to template.
-    Group messages by sender.username so frontend JS can access messagesData[user].
+    Group messages by conversation partner (other user) so frontend JS can access messagesData[user].
+    Include messages where the current user is either sender or receiver.
     """
     users = User.objects.exclude(id=request.user.id)
-    inbox_messages = Message.objects.filter(receiver=request.user).order_by("-created_at")
+
+    # Fetch all messages where the current user is involved (either sender or receiver)
+    # Order ascending so messages appear in chronological order within each conversation
+    inbox_messages = Message.objects.filter(
+        Q(receiver=request.user) | Q(sender=request.user)
+    ).order_by("created_at")
 
     messages_data = {}
+
     for m in inbox_messages:
         try:
             private_key = getattr(m, "private_key", None)
+            # decrypt_message expects (bundle_str, level, private_key)
             plain = decrypt_message(m.encrypted_text, m.classification, private_key)
         except Exception as e:
             logger.exception("Decryption failed for msg %s: %s", getattr(m, "id", "?"), e)
             plain = "[Decryption Failed]"
 
-        sender_username = m.sender.username if m.sender else "Unknown"
+        # Determine conversation partner (the "other" user)
+        # If the current user is the sender, other = receiver; else other = sender
+        try:
+            sender_username = m.sender.username if m.sender else None
+            receiver_username = m.receiver.username if m.receiver else None
+        except Exception:
+            sender_username = getattr(m, "sender", None)
+            receiver_username = getattr(m, "receiver", None)
 
-        if sender_username not in messages_data:
-            messages_data[sender_username] = []
+        if m.sender and m.sender == request.user:
+            other_username = receiver_username
+        else:
+            other_username = sender_username
 
-        messages_data[sender_username].append({
+        # Skip if other participant is missing (defensive)
+        if not other_username:
+            continue
+
+        # initialize list for this conversation partner
+        if other_username not in messages_data:
+            messages_data[other_username] = []
+
+        messages_data[other_username].append({
             "id": m.id,
             "sender": sender_username,
             "text": plain,
@@ -145,6 +170,7 @@ def inboxpage(request):
         "users": users,
         "messages_data": messages_data
     })
+
 
 
 def logoutpage(request):
