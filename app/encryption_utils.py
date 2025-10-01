@@ -1,138 +1,141 @@
+# app/encryption_utils.py
 import os
 import base64
 import struct
+import logging
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from Crypto.Cipher import AES, PKCS1_OAEP
 from Crypto.PublicKey import RSA
 from Crypto.Util.Padding import pad, unpad
 
-# --- Global RSA keypair (for high security encryption) ---
-GLOBAL_RSA_KEY = RSA.generate(2048)
-GLOBAL_PUBLIC_KEY = GLOBAL_RSA_KEY.publickey()
-GLOBAL_PRIVATE_KEY = GLOBAL_RSA_KEY.export_key().decode()
+logger = logging.getLogger(__name__)
 
-# --- Helper functions ---
-def _pack(*parts):
+# Helper pack/unpack (length-prefixed) — robust to binary segments
+def _pack(*parts: bytes) -> bytes:
     return b"".join(struct.pack("!I", len(p)) + p for p in parts)
 
-def _unpack(raw, expected_parts):
+def _unpack(raw: bytes, expected_parts: int):
     parts = []
-    current_raw = raw
+    cur = raw
     for _ in range(expected_parts):
-        if len(current_raw) < 4:
-            raise ValueError("Corrupted data: Incomplete length header.")
-        length = struct.unpack("!I", current_raw[:4])[0]
-        current_raw = current_raw[4:]
-        if len(current_raw) < length:
-            raise ValueError("Corrupted data: Incomplete data part.")
-        part, current_raw = current_raw[:length], current_raw[length:]
+        if len(cur) < 4:
+            raise ValueError("Corrupted bundle: missing length header")
+        length = struct.unpack("!I", cur[:4])[0]
+        cur = cur[4:]
+        if len(cur) < length:
+            raise ValueError("Corrupted bundle: missing data")
+        part, cur = cur[:length], cur[length:]
         parts.append(part)
     return parts
 
-def fix_base64_padding(s: str) -> str:
-    return s + '=' * (-len(s) % 4)
+def _b64encode(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).decode()
 
-# --- Low security (Fernet) ---
-def low_encrypt(message: str) -> dict:
-    key = Fernet.generate_key()
+def _b64decode(s: str) -> bytes:
+    # fix padding
+    rem = len(s) % 4
+    if rem:
+        s = s + "=" * (4 - rem)
+    return base64.urlsafe_b64decode(s.encode())
+
+# -----------------------
+# Low: Fernet (symmetric)
+# Returns: dict with 'bundle' (single base64 string) and 'private_key' = fernet key (base64 urlsafe)
+# -----------------------
+def low_encrypt(message: str):
+    key = Fernet.generate_key()  # bytes
     f = Fernet(key)
     token = f.encrypt(message.encode())
-    bundle = base64.urlsafe_b64encode(_pack(key, token)).decode()
-    return {"bundle": bundle, "private_key": key.decode()}  # store key for low messages
+    bundle = _pack(key, token)
+    return {"bundle": _b64encode(bundle), "private_key": key.decode(), "algo": "Fernet"}
 
-
-def low_decrypt(bundle_str: str, key: str = None) -> str:
-    fixed_str = fix_base64_padding(bundle_str)
-    raw = base64.urlsafe_b64decode(fixed_str.encode())
-    key_from_bundle, token = _unpack(raw, 2)
-    fernet_key = key.encode() if key else key_from_bundle
-    f = Fernet(fernet_key)
+def low_decrypt(bundle_str: str, private_key: str = None):
+    raw = _b64decode(bundle_str)
+    key_in_bundle, token = _unpack(raw, 2)
+    key_bytes = private_key.encode() if private_key else key_in_bundle
+    f = Fernet(key_bytes)
     return f.decrypt(token).decode()
 
-
-# --- Medium security (AES-GCM) ---
-def medium_encrypt(message: str) -> str:
+# -----------------------
+# Medium: AES-GCM
+# Returns: bundle base64, store AES key in private_key (base64)
+# -----------------------
+def medium_encrypt(message: str):
     key = AESGCM.generate_key(bit_length=256)
     aesgcm = AESGCM(key)
     nonce = os.urandom(12)
     ct = aesgcm.encrypt(nonce, message.encode(), None)
-    return base64.urlsafe_b64encode(_pack(key, nonce, ct)).decode()
+    bundle = _pack(key, nonce, ct)
+    return {"bundle": _b64encode(bundle), "private_key": base64.urlsafe_b64encode(key).decode(), "algo": "AES-GCM"}
 
-def medium_decrypt(bundle_str: str) -> str:
-    fixed_str = fix_base64_padding(bundle_str)
-    raw = base64.urlsafe_b64decode(fixed_str.encode())
+def medium_decrypt(bundle_str: str, private_key: str = None):
+    raw = _b64decode(bundle_str)
     key, nonce, ct = _unpack(raw, 3)
+    # prefer provided private_key (string base64), else use key from bundle
+    if private_key:
+        key = base64.urlsafe_b64decode(private_key.encode())
     aesgcm = AESGCM(key)
     return aesgcm.decrypt(nonce, ct, None).decode()
 
-# --- High security (Hybrid AES + RSA) ---
-def high_encrypt(message: str) -> dict:
-    aes_key = os.urandom(32)
+# -----------------------
+# High: AES-CBC + RSA (hybrid)
+# We generate a new ephemeral RSA keypair per message here, and return private_key (PEM) and bundle (encrypted_key + iv + ct + pub)
+# Note: in production you'd use persistent keys or KMS; for now we store private_key in DB (as you've been doing).
+# -----------------------
+def high_encrypt(message: str):
+    aes_key = os.urandom(32)  # AES-256
     iv = os.urandom(16)
     aes_cipher = AES.new(aes_key, AES.MODE_CBC, iv)
-    encrypted_data = aes_cipher.encrypt(pad(message.encode(), AES.block_size))
+    ciphertext = aes_cipher.encrypt(pad(message.encode(), AES.block_size))
 
-    rsa_cipher = PKCS1_OAEP.new(GLOBAL_PUBLIC_KEY)
-    encrypted_key = rsa_cipher.encrypt(aes_key)
+    rsa_key = RSA.generate(2048)
+    pub = rsa_key.publickey()
+    rsa_cipher = PKCS1_OAEP.new(pub)
+    encrypted_aes_key = rsa_cipher.encrypt(aes_key)
 
-    bundle = _pack(encrypted_key, iv, encrypted_data, GLOBAL_PUBLIC_KEY.export_key())
+    # pack: encrypted_aes_key || iv || ciphertext || pub_pem
+    bundle = _pack(encrypted_aes_key, iv, ciphertext, pub.export_key())
+    private_key_pem = rsa_key.export_key().decode()
 
-    return {
-        "bundle": base64.urlsafe_b64encode(bundle).decode(),
-        "private_key": GLOBAL_PRIVATE_KEY
-    }
+    return {"bundle": _b64encode(bundle), "private_key": private_key_pem, "algo": "RSA-AES-HYBRID"}
 
-def high_decrypt(bundle_str: str, private_key_pem: str = None) -> str:
-    fixed_str = fix_base64_padding(bundle_str)
-    raw = base64.urlsafe_b64decode(fixed_str.encode())
-    encrypted_key, iv, encrypted_data, _pub = _unpack(raw, 4)
-
-    rsa_key = RSA.import_key((private_key_pem or GLOBAL_PRIVATE_KEY).encode())
+def high_decrypt(bundle_str: str, private_key_pem: str):
+    if not private_key_pem:
+        raise ValueError("private_key_pem required for high decryption")
+    raw = _b64decode(bundle_str)
+    encrypted_aes_key, iv, ciphertext, pub_pem = _unpack(raw, 4)
+    rsa_key = RSA.import_key(private_key_pem.encode())
     rsa_cipher = PKCS1_OAEP.new(rsa_key)
-    aes_key = rsa_cipher.decrypt(encrypted_key)
-
+    aes_key = rsa_cipher.decrypt(encrypted_aes_key)
     aes_cipher = AES.new(aes_key, AES.MODE_CBC, iv)
-    return unpad(aes_cipher.decrypt(encrypted_data), AES.block_size).decode()
+    plain = unpad(aes_cipher.decrypt(ciphertext), AES.block_size)
+    return plain.decode()
 
-# --- Public API ---
-def encrypt_message(message: str, level: str) -> dict:
-    level = level.lower()
+# -----------------------
+# Public dispatcher API (consistent return)
+# encrypt_message returns dict:
+#   { "bundle": base64str, "private_key": str or None, "algo": "Fernet"/"AES-GCM"/"RSA-AES-HYBRID" }
+# decrypt_message(bundle, classification, private_key=None) -> plaintext
+# -----------------------
+def encrypt_message(message: str, level: str):
+    level = (level or "low").lower()
     if level == "low":
-        return {"bundle": low_encrypt(message), "private_key": None}
+        return low_encrypt(message)
     elif level == "medium":
-        return {"bundle": medium_encrypt(message), "private_key": None}
+        return medium_encrypt(message)
     elif level == "high":
         return high_encrypt(message)
     else:
-        raise ValueError(f"Unknown sensitivity level: {level}")
-
-def decrypt_message(bundle_str: str, level: str, private_key_pem: str = None) -> str:
-    level = level.lower()
-    if level == "low":
-        return low_decrypt(bundle_str, key=private_key_pem)
-    elif level == "medium":
-        return medium_decrypt(bundle_str)
-    elif level == "high":
-        return high_decrypt(bundle_str, private_key_pem)
-    else:
         raise ValueError(f"Unknown sensitivity level '{level}'")
 
-
-# --- Message classifier ---
-def classify_message(message: str) -> dict:
-    """
-    Classify a message into low / medium / high confidentiality.
-    Returns dict with:
-    - label: descriptive label
-    - encryption: suggested encryption method
-    - mapped_conf: 'low', 'medium', 'high' for DB usage
-    """
-    text = message.lower()
-
-    if any(word in text for word in ["password", "key", "secret", "confidential", "private"]):
-        return {"label": "high_confidential", "encryption": "RSA+AES", "mapped_conf": "high"}
-    elif any(word in text for word in ["exam", "marks", "salary", "project", "document"]):
-        return {"label": "medium_confidential", "encryption": "AES", "mapped_conf": "medium"}
+def decrypt_message(bundle_str: str, level: str, private_key: str = None):
+    level = (level or "low").lower()
+    if level == "low":
+        return low_decrypt(bundle_str, private_key)
+    elif level == "medium":
+        return medium_decrypt(bundle_str, private_key)
+    elif level == "high":
+        return high_decrypt(bundle_str, private_key)
     else:
-        return {"label": "low_confidential", "encryption": "Fernet", "mapped_conf": "low"}
+        raise ValueError(f"Unknown sensitivity level '{level}'")

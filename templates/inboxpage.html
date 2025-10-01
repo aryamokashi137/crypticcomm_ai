@@ -170,7 +170,6 @@ function getCookie(name) {
 const csrftoken = getCookie('csrftoken');
 
 // Load chat
-// Load chat
 function loadChat(user) {
     activeUser = user;
     chatBox.innerHTML = '';
@@ -179,8 +178,7 @@ function loadChat(user) {
     const msgs = messagesData[user] || [];
     msgs.forEach(m => {
         const type = (m.sender === "{{ user.username }}") ? 'sent' : 'received';
-        // Use 'created_at' instead of 'timestamp'
-        addMessageToDOM(m.text, type, m.created_at, m.id, m.classification);
+        addMessageToDOM(m.text, type, m.created_at || m.timestamp, m.id, m.classification);
     });
 
     chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
@@ -220,30 +218,28 @@ function addMessageToDOM(message, type, isoTime=null, id=null, classification='l
 
     msgDiv.appendChild(circlesWrapper);
 
-   // Message text
-const textSpan = document.createElement('span');
-textSpan.textContent = message;
+    // Message text
+    const textSpan = document.createElement('span');
+    textSpan.textContent = message;
 
-// --- Add blur + lock only for received messages ---
-if(type === 'received'){
-    textSpan.style.filter = 'blur(5px)';
-    textSpan.style.transition = 'filter 0.3s ease';
+    // --- Add blur + lock only for received messages ---
+    if(type === 'received'){
+        textSpan.style.filter = 'blur(5px)';
+        textSpan.style.transition = 'filter 0.3s ease';
 
-    const lockIcon = document.createElement('i');
-    lockIcon.className = 'fa fa-lock ms-2';
-    lockIcon.title = 'Click to view message';
-    lockIcon.style.cursor = 'pointer';
-    msgDiv.appendChild(lockIcon);
+        const lockIcon = document.createElement('i');
+        lockIcon.className = 'fa fa-lock ms-2';
+        lockIcon.title = 'Click to view message';
+        lockIcon.style.cursor = 'pointer';
+        msgDiv.appendChild(lockIcon);
 
-    lockIcon.addEventListener('click', () => {
-        textSpan.style.filter = 'none';
-        lockIcon.className = 'fa fa-unlock ms-2';
-    });
-}
+        lockIcon.addEventListener('click', () => {
+            textSpan.style.filter = 'none';
+            lockIcon.className = 'fa fa-unlock ms-2';
+        });
+    }
 
-// Append the textSpan to msgDiv after adding blur/lock
-msgDiv.appendChild(textSpan);
-
+    msgDiv.appendChild(textSpan);
 
     // Timestamp
     const tsDiv = document.createElement('div');
@@ -256,31 +252,37 @@ msgDiv.appendChild(textSpan);
     chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
 }
 
-
-
 // Send text message
 sendBtn.addEventListener('click', async () => {
     const msg = chatInput.value.trim();
     if (!msg || !activeUser) return;
 
-    addMessageToDOM(msg, 'sent', new Date().toISOString());
     chatInput.value = '';
 
-    const result = await fetch("{% url 'send_message' %}", {
+    const result = await fetch("{% url 'send_message_api' %}", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
         body: JSON.stringify({ receiver: activeUser, message: msg })
     }).then(r => r.json());
 
     if (result.status === 'success') {
-        alert(result.msg);
+        const classification = result.classification || 'low';
+        const isoTime = new Date().toISOString();
+
+        // show in chat immediately
+        addMessageToDOM(msg, 'sent', isoTime, result.message_id, classification);
+
+        // store in messagesData
         if (!messagesData[activeUser]) messagesData[activeUser] = [];
         messagesData[activeUser].push({
             text: msg,
             sender: "{{ user.username }}",
-            timestamp: new Date().toISOString(),
-            classification: 'low'
+            created_at: isoTime,
+            classification: classification,
+            id: result.message_id
         });
+
+        alert(result.msg);
     } else {
         alert("Failed to send message: " + result.error);
     }
@@ -332,7 +334,7 @@ fileInput.addEventListener('change', async () => {
             messagesData[activeUser].push({
                 text: "📎 " + file.name,
                 sender: "{{ user.username }}",
-                timestamp: now.toISOString(),
+                created_at: now.toISOString(),
                 classification: 'file'
             });
 
@@ -369,7 +371,3 @@ chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendBtn.c
     }
 })();
 </script>
-
-
-</body>
-</html>

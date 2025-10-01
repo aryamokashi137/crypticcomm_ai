@@ -1,41 +1,55 @@
-from django.shortcuts import render, redirect, get_object_or_404
+# app/views.py (only main parts shown; integrate in your file)
+from django.http import JsonResponse
+from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse, JsonResponse
-
-from .models import Message, EncryptedFile
-from .encryption_utils import encrypt_message, decrypt_message
-
+from .models import Message
 from django.core.mail import send_mail
 from django.conf import settings
-
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-from django.db import models
-#from ml.classifier import classify_message
+import traceback, logging, hashlib
+
 from django.db.models import Q
 from .encryption_utils import encrypt_message,decrypt_message
 from ml.model_service import classify_message
 from django.conf import settings
 
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from django.db import models
+import base64
+import traceback
+import logging
+from django.conf import settings
+from django.core.mail import send_mail
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from django.contrib.auth.models import User
+from .models import Message, EncryptedFile
+from app.encryption_utils import encrypt_message  # assuming your encryption util
 
-import logging, traceback
 logger = logging.getLogger(__name__)
 
-# AI classifier fallback
+# imports from earlier
 try:
     from ml.model_service import classify_message
-except Exception:
+except Exception as e:
+    logger.exception("Classifier import failed: %s", e)
     def classify_message(message: str):
-        return "low"
+        return {"mapped_conf": "low", "encryption": "Fernet", "label_raw": "low_confidential", "index": 0, "probs": []}
 
-# ----------------- Pages -----------------
+from .encryption_utils import encrypt_message, decrypt_message
+
+# ---------- page views ----------
 def homepage(request):
-    if request.method == 'POST':
+    if request.method == "POST":
+       if request.method == 'POST':
         name = request.POST.get('name', '').strip()
         email = request.POST.get('email', '').strip()
         password = request.POST.get('password', '')
@@ -61,11 +75,11 @@ def homepage(request):
         user.save()
         messages.success(request, "Registration successful! Please login.")
         return redirect('loginpage')
-    return render(request, 'homepage.html')
-
+        pass
+    return render(request, "homepage.html")
 
 def loginpage(request):
-    if request.method == "POST":
+     if request.method == "POST":
         email = request.POST.get("email")
         password = request.POST.get("password")
 
@@ -83,43 +97,49 @@ def loginpage(request):
             return redirect('inboxpage')
         else:
             messages.error(request, "Invalid email or password")
-
-    return render(request, 'loginpage.html')
-
+     return render(request, "loginpage.html")
 
 @login_required(login_url='loginpage')
-def inboxpage(request):
+def msgpage(request):
     users = User.objects.exclude(id=request.user.id)
+    user_emails = list(users.values_list("email", flat=True))
+    message_count = Message.objects.filter(receiver=request.user).count()
+    return render(request, "msgpage.html", {
+        "users": users,
+        "user_emails": user_emails,
+        "message_count": message_count
+    })
+@login_required(login_url='loginpage')
+def inboxpage(request):
+    """
+    Pass structured messages_data to template.
+    Group messages by sender.username so frontend JS can access messagesData[user].
+    """
+    users = User.objects.exclude(id=request.user.id)
+    inbox_messages = Message.objects.filter(receiver=request.user).order_by("-created_at")
+
     messages_data = {}
+    for m in inbox_messages:
+        try:
+            private_key = getattr(m, "private_key", None)
+            plain = decrypt_message(m.encrypted_text, m.classification, private_key)
+        except Exception as e:
+            logger.exception("Decryption failed for msg %s: %s", getattr(m, "id", "?"), e)
+            plain = "[Decryption Failed]"
 
-    for user in users:
-        # Fetch messages between logged-in user and 'user'
-        msgs = Message.objects.filter(
-            (Q(sender=request.user) & Q(receiver=user)) |
-            (Q(sender=user) & Q(receiver=request.user))
-        ).order_by('created_at')  # oldest first for chat display
+        sender_username = m.sender.username if m.sender else "Unknown"
 
-        messages_data[user.username] = []
+        if sender_username not in messages_data:
+            messages_data[sender_username] = []
 
-        for msg in msgs:
-            try:
-                # Attempt to decrypt message
-                decrypted_text = decrypt_message(
-                    msg.encrypted_text,
-                    level=msg.classification,
-                    private_key_pem=msg.private_key  # only for high
-                )
-            except Exception as e:
-                # If decryption fails, use a placeholder
-                decrypted_text = "[Error decrypting message]"
-
-            messages_data[user.username].append({
-                "text": decrypted_text,
-                "sender": msg.sender.username,
-                "timestamp": getattr(msg, 'timestamp', msg.created_at).isoformat(),
-                "id": msg.id,
-                "classification": msg.classification
-            })
+        messages_data[sender_username].append({
+            "id": m.id,
+            "sender": sender_username,
+            "text": plain,
+            "classification": m.classification,
+            "hash": getattr(m, "hash_value", None) or "—",
+            "created_at": m.created_at.isoformat() if m.created_at else None
+        })
 
     return render(request, "inboxpage.html", {
         "users": users,
@@ -127,119 +147,104 @@ def inboxpage(request):
     })
 
 
+def logoutpage(request):
+    logout(request)
+    messages.success(request, "Logged out")
+    return redirect("loginpage")
 
-# ----------------- API -----------------
-logger = logging.getLogger(__name__)
-
-from django.shortcuts import render, get_object_or_404
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth.models import User
-from django.db.models import Q
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from django.core.mail import send_mail
-from django.conf import settings
-import traceback, logging
-
-from .models import Message
-from .encryption_utils import encrypt_message, decrypt_message
-from ml.model_service import classify_message  # ML model
-
-logger = logging.getLogger(__name__)
-
+# ---------- API endpoints ----------
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
-def send_message(request):
+def send_message_api(request):
     """
-    API endpoint to send a message:
-    - Classifies message confidentiality
-    - Encrypts based on level
-    - Stores in DB
-    - Sends notification email WITHOUT showing message content
+    Expects JSON:
+    { "receiver": <user id or email or username>, "message": "...", optional "classification": "low|medium|high" }
     """
     try:
-        # --- Get data ---
         receiver_identifier = request.data.get("receiver")
         plaintext = request.data.get("message")
-        hash_value = request.data.get("hash", "")
+        frontend_class = (request.data.get("classification") or "").lower()
 
         if not receiver_identifier or not plaintext:
-            return Response({"error": "receiver and message are required"}, status=400)
+            return Response({"error": "receiver and message required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # --- Resolve receiver ---
-        try:
-            receiver = User.objects.get(email=receiver_identifier) if "@" in receiver_identifier \
-                else User.objects.get(username=receiver_identifier)
-        except User.DoesNotExist:
-            return Response({"error": "Receiver not found"}, status=404)
+        # resolve receiver (try id -> email -> username)
+        receiver = None
+        if isinstance(receiver_identifier, int) or (isinstance(receiver_identifier, str) and receiver_identifier.isdigit()):
+            try:
+                receiver = User.objects.get(id=int(receiver_identifier))
+            except User.DoesNotExist:
+                receiver = None
+        if receiver is None and "@" in str(receiver_identifier):
+            try:
+                receiver = User.objects.get(email=receiver_identifier)
+            except User.DoesNotExist:
+                receiver = None
+        if receiver is None:
+            try:
+                receiver = User.objects.get(username=receiver_identifier)
+            except User.DoesNotExist:
+                return Response({"error": "Receiver not found"}, status=status.HTTP_404_NOT_FOUND)
 
         sender = request.user
 
-        # --- Classify message ---
-        classification_result = classify_message(plaintext)
-        # Use mapped_conf if available
-        level = classification_result.get("mapped_conf", "low")
+        # classification from frontend if provided, else use ML
+        if frontend_class in ("low", "medium", "high"):
+            mapped_conf = frontend_class
+            suggested = None
+        else:
+            ml_res = classify_message(plaintext)
+            mapped_conf = ml_res.get("mapped_conf", "low")
+            suggested = ml_res.get("encryption")
 
-        # --- Encrypt message ---
-        encrypted_dict = encrypt_message(plaintext, level)
-        bundle = encrypted_dict.get("bundle")
-        if isinstance(bundle, dict):
-            bundle = bundle.get("bundle")  # handle nested dict
-        private_key = encrypted_dict.get("private_key")  # only for high-level messages
+        # validate mapped_conf
+        if mapped_conf not in ("low", "medium", "high"):
+            mapped_conf = "low"
 
-        # --- Save message in DB ---
+        # encrypt with standard API
+        enc = encrypt_message(plaintext, mapped_conf)
+        bundle = enc.get("bundle")
+        private_key = enc.get("private_key")  # store in DB for high/medium
+        algo = enc.get("algo")
+
+        # sha256 hash
+        h = hashlib.sha256(plaintext.encode()).hexdigest()
+
+        # ✅ Only use fields that exist in Message model
         msg = Message.objects.create(
             sender=sender,
             receiver=receiver,
             encrypted_text=bundle,
-            hash_value=hash_value,
-            classification=level,
-            private_key=private_key
+            private_key=private_key,
+            classification=mapped_conf,
+            hash_value=h,
         )
 
-        # --- Send email notification (without showing plaintext) ---
-        subject = f"🔔 New Secure Message from {sender.username} on CrypticComm"
-        html_message = f"""
-        <html>
-        <body>
-            <p>Hi <b>{receiver.username}</b>,</p>
-            <p>You have received a new message from <b>{sender.username}</b>.</p>
-            <p>Log in to <a href="http://127.0.0.1:8000/" target="_blank">CrypticComm</a> to view it securely.</p>
-            <br>
-            <p>— CrypticComm</p>
-        </body>
-        </html>
-        """
+        # try to email notify
         try:
-            send_mail(
-                subject=subject,
-                message=f"You have received a new message from {sender.username}.",
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[receiver.email],
-                html_message=html_message,
-                fail_silently=False
-            )
-        except Exception as mail_err:
-            logger.error(f"Failed to send email: {mail_err}")
+            subject = "🔔 New Secure Message on CrypticComm"
+            body = f"Hi {receiver.username},\nYou have received a message from {sender.username}. Log in to view it."
+            send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [receiver.email], fail_silently=False)
+            msg.delivered = True
+            msg.save(update_fields=["delivered"])
+        except Exception as e:
+            logger.warning("Email notify failed: %s", e)
 
-        # --- Return API response ---
         return Response({
             "status": "success",
             "msg": "Message sent successfully!",
             "message_id": msg.id,
-            "classification": level,
-            "classifier": classification_result
-        }, status=200)
+            "classification": mapped_conf,
+            "text": plaintext  # ✅ return plaintext so UI displays immediately
+        }, status=status.HTTP_200_OK)
 
     except Exception as e:
-        logger.error("send_message error: %s\n%s", e, traceback.format_exc())
-        return Response({"error": str(e)}, status=500)
+        logger.exception("send_message_api error: %s", e)
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
-
-import base64
+logger = logging.getLogger(__name__)
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -254,10 +259,12 @@ def send_file(request):
         if not receiver_identifier or not uploaded_file:
             return Response({"error": "receiver and file are required"}, status=400)
 
-        # Resolve receiver
+        # ----------------- Resolve receiver -----------------
         try:
-            receiver = User.objects.get(email=receiver_identifier) if "@" in receiver_identifier \
-                else User.objects.get(username=receiver_identifier)
+            if "@" in receiver_identifier:
+                receiver = User.objects.get(email=receiver_identifier)
+            else:
+                receiver = User.objects.get(username=receiver_identifier)
         except User.DoesNotExist:
             return Response({"error": "Receiver not found"}, status=404)
 
@@ -265,9 +272,9 @@ def send_file(request):
 
         # ----------------- Encrypt file data -----------------
         file_bytes = uploaded_file.read()
-        file_b64_str = base64.b64encode(file_bytes).decode('utf-8')   # Convert bytes -> str
-        encrypted_dict = encrypt_message(file_b64_str, "low")          # encrypt_message returns dict
-        encrypted_data = encrypted_dict.get("ciphertext", "").encode('utf-8')  # Convert to bytes
+        file_b64_str = base64.b64encode(file_bytes).decode("utf-8")  # bytes → base64 string
+        encrypted_dict = encrypt_message(file_b64_str, "low")        # returns dict
+        encrypted_data = encrypted_dict.get("ciphertext", "").encode("utf-8")  # str → bytes
 
         # ----------------- Create Message for file -----------------
         file_message = Message.objects.create(
@@ -285,19 +292,19 @@ def send_file(request):
         )
 
         # ----------------- Send notification email -----------------
+        subject = "New File Received on CrypticComm"
+        html_message = f"""
+        <html>
+        <body>
+            <p>Hi <b>{receiver.username}</b>,</p>
+            <p>You have received a file <b>{uploaded_file.name}</b> from <b>{sender.username}</b>.</p>
+            <p>Log in to <a href="http://127.0.0.1:8000/" target="_blank">CrypticComm</a> to view/download it securely.</p>
+            <br>
+            <p>— CrypticComm</p>
+        </body>
+        </html>
+        """
         try:
-            subject = "New File Received on CrypticComm"
-            html_message = f"""
-            <html>
-            <body>
-                <p>Hi <b>{receiver.username}</b>,</p>
-                <p>You have received a file <b>{uploaded_file.name}</b> from <b>{sender.username}</b>.</p>
-                <p>Log in to <a href="http://127.0.0.1:8000/" target="_blank">CrypticComm</a> to view/download it securely.</p>
-                <br>
-                <p>— CrypticComm</p>
-            </body>
-            </html>
-            """
             send_mail(
                 subject=subject,
                 message=f"You have received a file from {sender.username}.",
@@ -314,7 +321,36 @@ def send_file(request):
     except Exception as e:
         logger.error("send_file error: %s\n%s", e, traceback.format_exc())
         return Response({"error": str(e)}, status=500)
-    
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def inbox_api(request):
+    """
+    Return decrypted messages for currently logged-in user (server side decrypt)
+    """
+    try:
+        inbox_messages = Message.objects.filter(receiver=request.user).order_by("-created_at")
+        data = []
+        for m in inbox_messages:
+            try:
+                plain = decrypt_message(m.encrypted_text, m.classification, m.private_key)
+            except Exception:
+                plain = "[Decryption Failed]"
+
+            data.append({
+                "id": m.id,
+                "from": m.sender.username,
+                "text": plain,
+                "classification": m.classification,
+                "hash": m.hash_value,
+                "created_at": m.created_at.isoformat() if m.created_at else None
+            })
+        return Response(data, status=status.HTTP_200_OK)
+    except Exception as e:
+        logger.exception("inbox_api error: %s", e)
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 from django.views.decorators.csrf import csrf_exempt
 
 @csrf_exempt
@@ -367,7 +403,6 @@ def decrypt_message_api(request):
     
 
 
-
 def logoutpage(request):
     logout(request)
     messages.success(request, "You have been logged out successfully.")
@@ -384,5 +419,3 @@ def settingspage(request):
 
 def aboutus(request):
     return render(request, 'aboutus.html')
-
-
