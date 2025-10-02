@@ -9,9 +9,8 @@ class MessageAdmin(admin.ModelAdmin):
         "receiver", 
         "classification", 
         "hash_value", 
-        "delivered", 
-        "is_read", 
+        "status", 
         "created_at"
     )
-    list_filter = ("classification", "delivered", "is_read")  
+    list_filter = ("classification", "status")  
     search_fields = ("sender__username", "receiver__username", "hash_value")

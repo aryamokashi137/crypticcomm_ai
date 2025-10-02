@@ -12,6 +12,8 @@ urlpatterns = [
     path("settingspage/", views.settingspage, name="settingspage"),
     path("api/send_file/", views.send_file, name="send_file"),
     path("api/decrypt_message/", views.decrypt_message_api, name="decrypt_message"),
+    path("update_status/<int:message_id>/", views.update_status, name="update_status"),
+
 
 ]
 

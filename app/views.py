@@ -244,6 +244,7 @@ def send_message_api(request):
             private_key=private_key,
             classification=mapped_conf,
             hash_value=h,
+            status="sent"   # ✅ tick: mark as sent
         )
 
         # try to email notify
@@ -251,8 +252,8 @@ def send_message_api(request):
             subject = "🔔 New Secure Message on CrypticComm"
             body = f"Hi {receiver.username},\nYou have received a message from {sender.username}. Log in to view it."
             send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [receiver.email], fail_silently=False)
-            msg.delivered = True
-            msg.save(update_fields=["delivered"])
+            msg.status = "delivered"   # ✅ tick: mark as delivered if email sent
+            msg.save(update_fields=["status"])
         except Exception as e:
             logger.warning("Email notify failed: %s", e)
 
@@ -261,12 +262,14 @@ def send_message_api(request):
             "msg": "Message sent successfully!",
             "message_id": msg.id,
             "classification": mapped_conf,
-            "text": plaintext  # ✅ return plaintext so UI displays immediately
+            "text": plaintext,  # ✅ return plaintext so UI displays immediately
+            "tick": msg.status  # ✅ return tick to frontend
         }, status=status.HTTP_200_OK)
 
     except Exception as e:
         logger.exception("send_message_api error: %s", e)
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 
@@ -307,7 +310,8 @@ def send_file(request):
             sender=sender,
             receiver=receiver,
             encrypted_text=f"[File attachment: {uploaded_file.name}]",
-            classification="low"
+            classification="low",
+            status="sent"   # ✅ tick: mark as sent
         )
 
         # ----------------- Save EncryptedFile -----------------
@@ -339,24 +343,37 @@ def send_file(request):
                 html_message=html_message,
                 fail_silently=False
             )
+            file_message.status = "delivered"   # ✅ tick: mark as delivered after email sent
+            file_message.save(update_fields=["status"])
         except Exception as mail_error:
             logger.warning("Email sending failed: %s", mail_error)
 
-        return Response({"status": "success", "msg": "File sent successfully!"}, status=200)
+        return Response({
+            "status": "success",
+            "msg": "File sent successfully!",
+            "message_id": file_message.id,
+            "tick": file_message.status  # ✅ return tick for frontend
+        }, status=200)
 
     except Exception as e:
         logger.error("send_file error: %s\n%s", e, traceback.format_exc())
         return Response({"error": str(e)}, status=500)
 
 
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def inbox_api(request):
     """
-    Return decrypted messages for currently logged-in user (server side decrypt)
+    Return decrypted messages for currently logged-in user (server side decrypt).
+    Auto-update 'sent' → 'delivered' for messages fetched by the receiver.
     """
     try:
         inbox_messages = Message.objects.filter(receiver=request.user).order_by("-created_at")
+
+        # 🔄 auto-update any "sent" → "delivered"
+        inbox_messages.filter(status="sent").update(status="delivered")
+
         data = []
         for m in inbox_messages:
             try:
@@ -370,14 +387,17 @@ def inbox_api(request):
                 "text": plain,
                 "classification": m.classification,
                 "hash": m.hash_value,
-                "created_at": m.created_at.isoformat() if m.created_at else None
+                "created_at": m.created_at.isoformat() if m.created_at else None,
+                "status": getattr(m, "status", None)  # ✅ sender will see updated ticks
             })
         return Response(data, status=status.HTTP_200_OK)
     except Exception as e:
         logger.exception("inbox_api error: %s", e)
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
 from django.views.decorators.csrf import csrf_exempt
+
 
 @csrf_exempt
 @login_required
@@ -427,6 +447,40 @@ def decrypt_message_api(request):
     except Exception as e:
         return Response({"status": "error", "error": str(e)}, status=500)
     
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def update_status(request, message_id):
+    """
+    Update message status:
+    - 'sent' → 'delivered'
+    - mark as 'seen' if requested
+    """
+    try:
+        msg = Message.objects.get(id=message_id, receiver=request.user)
+
+        # Decide new status
+        new_status = "delivered"
+        if request.data.get("seen") is True:
+            new_status = "seen"
+
+        # Update receiver copy
+        msg.status = new_status
+        msg.save(update_fields=["status"])
+
+        # 🔵 Also update sender copy in DB
+        Message.objects.filter(
+            id=message_id, sender=msg.sender
+        ).update(status=new_status)
+
+        return Response({"status": new_status}, status=status.HTTP_200_OK)
+
+    except Message.DoesNotExist:
+        return Response({"error": "Message not found"}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        logger.exception("update_status error: %s", e)
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 def logoutpage(request):
