@@ -453,32 +453,105 @@ def decrypt_message_api(request):
 def update_status(request, message_id):
     """
     Update message status:
-    - 'sent' → 'delivered'
-    - mark as 'seen' if requested
+      - If current user is the receiver and sends {"seen": true} -> set status = "seen"
+      - Otherwise, if the receiver hits this endpoint without seen flag and the message is "sent",
+        update it to "delivered" (used when receiver fetches messages or opens chat)
+    Returns: {"status": "<new_status>", "message_id": <id>}
     """
     try:
-        msg = Message.objects.get(id=message_id, receiver=request.user)
+        msg = Message.objects.get(id=message_id)
 
-        # Decide new status
-        new_status = "delivered"
+        # Only the receiver is allowed to change delivered/seen state
+        if msg.receiver != request.user:
+            return Response({"error": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+
+        # If receiver explicitly marked seen
         if request.data.get("seen") is True:
             new_status = "seen"
+        else:
+            # Default: move sent -> delivered (if needed)
+            if msg.status == "sent":
+                new_status = "delivered"
+            else:
+                new_status = msg.status
 
-        # Update receiver copy
+        # persist
         msg.status = new_status
         msg.save(update_fields=["status"])
 
-        # 🔵 Also update sender copy in DB
-        Message.objects.filter(
-            id=message_id, sender=msg.sender
-        ).update(status=new_status)
-
-        return Response({"status": new_status}, status=status.HTTP_200_OK)
+        # Return the new status so frontends can update the UI immediately
+        return Response({"status": new_status, "message_id": msg.id}, status=status.HTTP_200_OK)
 
     except Message.DoesNotExist:
         return Response({"error": "Message not found"}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         logger.exception("update_status error: %s", e)
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_message_statuses(request):
+    """
+    Return all message IDs and statuses between the current user and ?user=<username>
+    Used for polling ticks.
+    """
+    other_username = request.GET.get("user")
+    if not other_username:
+        return Response([], status=status.HTTP_200_OK)
+
+    try:
+        other_user = User.objects.get(username=other_username)
+    except User.DoesNotExist:
+        return Response([], status=status.HTTP_200_OK)
+
+    msgs = Message.objects.filter(
+        sender__in=[request.user, other_user],
+        receiver__in=[request.user, other_user]
+    ).values("id", "status")
+
+    return Response(list(msgs), status=status.HTTP_200_OK)
+
+
+import hashlib
+
+# ---------- 🔐 HASH FEATURE ----------
+
+import hashlib
+
+def generate_hash(text: str) -> str:
+    """Generate a SHA-256 hash for the given text."""
+    return hashlib.sha256(text.encode()).hexdigest()
+ 
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_hash(request, message_id):
+    """
+    Return the SHA-256 hash value of a specific message.
+    Accessible only by the sender or receiver of that message.
+    """
+    try:
+        msg = Message.objects.get(id=message_id)
+
+        # Security check: allow only sender or receiver
+        if msg.sender != request.user and msg.receiver != request.user:
+            return Response({"error": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+
+        # If hash not yet computed (rare), recompute on the fly
+        if not msg.hash_value:
+            try:
+                decrypted = decrypt_message(msg.encrypted_text, msg.classification, msg.private_key)
+                msg.hash_value = generate_hash(decrypted)
+                msg.save(update_fields=["hash_value"])
+            except Exception:
+                msg.hash_value = "Hash unavailable"
+
+        return Response({"hash": msg.hash_value}, status=status.HTTP_200_OK)
+    
+
+    except Message.DoesNotExist:
+        return Response({"error": "Message not found"}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        logger.exception("get_hash error: %s", e)
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -489,8 +562,29 @@ def logoutpage(request):
     return redirect('loginpage')
 
 
+from django.shortcuts import render, redirect
+from django.contrib.auth.decorators import login_required
+from .forms import UserUpdateForm, ProfileUpdateForm
+
+@login_required
 def profilepage(request):
-    return render(request, 'profilepage.html')
+    if request.method == 'POST':
+        user_form = UserUpdateForm(request.POST, instance=request.user)
+        profile_form = ProfileUpdateForm(request.POST, request.FILES, instance=request.user.profile)
+
+        if user_form.is_valid() and profile_form.is_valid():
+            user_form.save()
+            profile_form.save()
+            return redirect('profilepage')
+    else:
+        user_form = UserUpdateForm(instance=request.user)
+        profile_form = ProfileUpdateForm(instance=request.user.profile)
+
+    return render(request, 'profilepage.html', {
+        'user_form': user_form,
+        'profile_form': profile_form,
+    })
+
 
 
 def settingspage(request):
@@ -499,3 +593,5 @@ def settingspage(request):
 
 def aboutus(request):
     return render(request, 'aboutus.html')
+
+

@@ -74,3 +74,26 @@ class EncryptedFile(models.Model):
 
     def __str__(self):
         return f"File {self.filename} (Message {self.message.id})"
+    
+
+class Profile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    about = models.TextField(default="Hey there! I am using CrypticComm.", max_length=300)
+    birthday = models.DateField(null=True, blank=True)
+    profile_image = models.ImageField(upload_to='profile_pics/', default='default.png')
+
+    def __str__(self):
+        return self.user.username
+
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from django.contrib.auth.models import User
+from .models import Profile  # adjust if your model is elsewhere
+
+@receiver(post_save, sender=User)
+def create_or_update_user_profile(sender, instance, created, **kwargs):
+    #Create a profile if the user doesn't have one
+    if created:
+        Profile.objects.create(user=instance)
+    else:
+        instance.profile.save()

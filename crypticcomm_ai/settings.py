@@ -30,7 +30,7 @@ INSTALLED_APPS = [
     # created by arya
     'rest_framework',
     'ml',
-    'app',
+    'app.apps.AppConfig',
 ]
 
 MIDDLEWARE = [
@@ -115,3 +115,7 @@ EMAIL_HOST_PASSWORD = "chbc zihl quew cpyq"  # App Password generated in Google
 
 #  Default sender that recipients will see
 DEFAULT_FROM_EMAIL = f"CrypticComm <{EMAIL_HOST_USER}>"
+
+#media
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'

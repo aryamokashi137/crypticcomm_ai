@@ -1,5 +1,7 @@
 from django.urls import path
 from . import views
+from .views import get_message_statuses
+
 
 urlpatterns = [
     path("", views.homepage, name="homepage"),
@@ -13,6 +15,9 @@ urlpatterns = [
     path("api/send_file/", views.send_file, name="send_file"),
     path("api/decrypt_message/", views.decrypt_message_api, name="decrypt_message"),
     path("update_status/<int:message_id>/", views.update_status, name="update_status"),
+    path("api/get_hash/<int:message_id>/", views.get_hash, name="get_hash"),
+    path("api/messages/statuses/", get_message_statuses, name="get_message_statuses"),
+
 
 
 ]

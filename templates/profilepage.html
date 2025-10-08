@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -36,7 +37,6 @@
     .nav-link:hover { text-decoration: underline;}
     .nav-link i { margin-right: 5px; }
 
-    /* Profile Page WhatsApp Style */
     .profile-wrapper {
         flex: 1;
         padding: 2rem 1rem;
@@ -63,6 +63,7 @@
         border-radius: 50%;
         border: 4px solid rgba(255,255,255,0.3);
         margin-bottom: 1rem;
+        object-fit: cover;
     }
     .profile-header h3 {
         font-family: 'Orbitron', sans-serif;
@@ -111,6 +112,46 @@
     .btn-edit:hover {
         background: rgba(200,50,180,1);
     }
+
+    /* Glassy input fields */
+    input[type="text"],
+    input[type="email"],
+    input[type="date"],
+    textarea,
+    select {
+        width: 100%;
+        background: rgba(255, 255, 255, 0.1);
+        color: #fff;
+        border: 1px solid rgba(255,255,255,0.25);
+        border-radius: 10px;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.95rem;
+        backdrop-filter: blur(8px);
+        transition: 0.3s;
+    }
+
+    input[type="text"]:focus,
+    input[type="email"]:focus,
+    input[type="date"]:focus,
+    textarea:focus,
+    select:focus {
+        outline: none;
+        border-color: #ff80df;
+        box-shadow: 0 0 8px rgba(255, 128, 223, 0.6);
+    }
+
+    .form-control {
+        background: rgba(255, 255, 255, 0.1) !important;
+        color: #fff !important;
+        border: 1px solid rgba(255,255,255,0.25) !important;
+        border-radius: 10px !important;
+        backdrop-filter: blur(8px);
+    }
+
+    .form-control:focus {
+        border-color: #ff80df !important;
+        box-shadow: 0 0 8px rgba(255,128,223,0.6) !important;
+    }
 </style>
 </head>
 <body>
@@ -140,40 +181,73 @@
   </div>
 </nav>
 
-<!-- Profile Section -->
 <div class="profile-wrapper">
   <div class="profile-card">
-    <div class="profile-header">
-      <img src="https://via.placeholder.com/150" alt="Profile Picture">
+    <div class="profile-header text-center">
+      <!-- ✅ Dynamic image with fallback -->
+      <img src="{% if user.profile.profile_image %}{{ user.profile.profile_image.url }}{% else %}{% static 'images/default-profile.png' %}{% endif %}" alt="Profile Picture" class="img-fluid rounded-circle mb-3" width="150" height="150">
       <h3>{{ user.username }}</h3>
-      <p>Hey there! I am using CrypticComm.</p>
+      <p>{{ user.profile.about }}</p>
     </div>
 
-    <div class="profile-info">
-      <div class="info-item">
-        <i class="fa fa-user"></i>
-        <div class="info-text">
-          <h6>Name</h6>
-          <p>{{ user.first_name }} {{ user.last_name }}</p>
+    <!-- ✅ Editable form -->
+    <form method="POST" enctype="multipart/form-data" class="p-3">
+      {% csrf_token %}
+      
+      <div class="profile-info">
+        <div class="info-item">
+          <i class="fa fa-user"></i>
+          <div class="info-text w-100">
+            <h6>First Name</h6>
+            {{ user_form.first_name }}
+          </div>
         </div>
-      </div>
-      <div class="info-item">
-        <i class="fa fa-envelope"></i>
-        <div class="info-text">
-          <h6>Email</h6>
-          <p>{{ user.email }}</p>
-        </div>
-      </div>
-      <div class="info-item">
-        <i class="fa fa-calendar"></i>
-        <div class="info-text">
-          <h6>Joined</h6>
-          <p>January 2025</p>
-        </div>
-      </div>
-    </div>
 
-    <button class="btn-edit"><i class="fa fa-edit"></i> Edit Profile</button>
+        <div class="info-item">
+          <i class="fa fa-user"></i>
+          <div class="info-text w-100">
+            <h6>Last Name</h6>
+            {{ user_form.last_name }}
+          </div>
+        </div>
+
+        <div class="info-item">
+          <i class="fa fa-envelope"></i>
+          <div class="info-text w-100">
+            <h6>Email</h6>
+            {{ user_form.email }}
+          </div>
+        </div>
+
+        <div class="info-item">
+          <i class="fa fa-comment"></i>
+          <div class="info-text w-100">
+            <h6>About</h6>
+            {{ profile_form.about }}
+          </div>
+        </div>
+
+        <div class="info-item">
+          <i class="fa fa-birthday-cake"></i>
+          <div class="info-text w-100">
+            <h6>Birthday</h6>
+            {{ profile_form.birthday }}
+          </div>
+        </div>
+
+        <div class="info-item">
+          <i class="fa fa-image"></i>
+          <div class="info-text w-100">
+            <h6>Profile Image</h6>
+            {{ profile_form.profile_image }}
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-edit w-100 mt-3">
+        <i class="fa fa-save"></i> Save Changes
+      </button>
+    </form>
   </div>
 </div>
 

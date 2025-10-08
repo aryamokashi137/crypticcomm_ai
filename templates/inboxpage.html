@@ -53,8 +53,8 @@ body {
 .message-wrapper.received { justify-content: flex-start; }
 
 .msg { max-width: 75%; padding: 0.8rem 1.2rem; border-radius: 18px; position: relative; word-wrap: break-word; font-size: 0.95rem; line-height: 1.3; background: rgba(255,255,255,0.15); backdrop-filter: blur(12px);}
-.sent .msg { background: rgba(0, 16, 118, 0.85); color: white; border-bottom-right-radius: 4px;}
-.received .msg { background: rgba(196, 0, 163, 1); color: white; border-bottom-left-radius: 4px;}
+.sent .msg { background:hsla(309, 100%, 37%, 1.00); color: white; border-bottom-right-radius: 4px;}
+.received .msg { background: rgba(1, 19, 135, 0.85); color: white; border-bottom-left-radius: 4px;}
 
 .timestamp { font-size: 0.7rem; color: white; margin-top: 4px; display: flex; justify-content: flex-end; align-items: center; gap: 4px;}
 .message-tick { font-size: 0.7rem; color: white; }
@@ -74,23 +74,96 @@ body {
 .emoji-bar span { cursor: pointer; padding: 2px;}
 .emoji-bar span:hover { background: rgba(255,255,255,0.2); border-radius: 6px;}
 
-/* ✅ Added for WhatsApp-style ticks */
+
 .ticks {
-    margin-left: 4px;
-    display: inline-flex;
-    align-items: center;
+  margin-left: 4px;
+  display: inline-flex;
+  align-items: center;
 }
+
 .ticks .fa-check {
-    font-size: 0.8rem;
-    margin-left: 2px;
-    color: #ccc; /* default gray */
+  font-size: 0.8rem;
+  margin-left: 2px;
+  color: #ccc; /* default gray */
 }
+
 .ticks .double {
-    color: #ccc; /* double tick gray */
+  color: #ccc; /* double tick gray */
 }
+
 .ticks .seen {
-    color: #4fc3f7; /* blue double tick */
+  color: #3aafe6ff; /* blue double tick */
 }
+
+/* --- Info button (hash icon) --- */
+.info-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0 4px;
+  color: white;
+  font-size: 0.9rem;
+  opacity: 0.85;
+  transition: opacity 0.2s ease, transform 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.info-btn i {
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+}
+
+.info-btn:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+/* --- Meta row (timestamp + icon + ticks) --- */
+.meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 0.75rem;
+  color: #ddd;
+  position: relative;
+  z-index: 5;
+}
+.meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.info-btn {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 4px;
+  opacity: 0.8;
+  transition: opacity 0.2s ease;
+}
+
+.info-btn:hover {
+  opacity: 1;
+}
+
+/* --- Message box --- */
+.msg {
+  position: relative;
+  overflow: visible; /* allows icon visibility */
+}
+
+
+
 </style>
 </head>
 <body>
@@ -120,60 +193,76 @@ body {
 </nav>
 
 <div class="inbox-wrapper">
-    <div class="sidebar">
-        <h5>Chats</h5>
-        <ul class="chat-list" id="chatList">
-            {% for user in users %}
-                <li data-user="{{ user.username }}">
-                    <i class="fas fa-user"></i> {{ user.username|default:"Unknown User" }}
-                </li>
-            {% empty %}
-                <li>No users found</li>
-            {% endfor %}
-        </ul>
+  <div class="sidebar">
+    <h5>Chats</h5>
+    <ul class="chat-list" id="chatList">
+      {% for user in users %}
+        <li data-user="{{ user.username }}">
+          <i class="fas fa-user"></i> {{ user.username|default:"Unknown User" }}
+        </li>
+      {% empty %}
+        <li>No users found</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="chat-area">
+    <div class="chat-header" id="chatHeader">
+      Select a user to chat
     </div>
 
-    <div class="chat-area">
-        <div class="chat-header" id="chatHeader">
-            Select a user to chat
-        </div>
+    <div class="chat-box" id="chatBox">
+      {% for msg in messages %}
+        <div class="message-wrapper {% if msg.sender == request.user %}sent{% else %}received{% endif %}">
+          <div class="msg">
+            <p>{{ msg.encrypted_text }}</p>
+            <small class="meta">
+  <span class="timestamp-text">{{ msg.created_at|date:"d/m/Y, H:i" }}</span>
+  <button class="info-btn" onclick="showHash({{ msg.id }})" title="View Hash">
+    <i class="fa fa-info-circle"></i>
+  </button>
+</small>
 
-        <div class="chat-box" id="chatBox">
-            {% for msg in messages %}
-                <div class="chat-message {% if msg.sender == request.user %}sent{% else %}received{% endif %}">
-                    <p>{{ msg.encrypted_text }}</p>
-                    <small class="meta">
-                        {{ msg.created_at|date:"d/m/Y, H:i" }}
-                        <span class="ticks">
-    {% if msg.status == "sent" %}
-        <i class="fa fa-check single"></i>
-    {% elif msg.status == "delivered" %}
-        <i class="fa fa-check double"></i>
-        <i class="fa fa-check double"></i>
-    {% elif msg.status == "seen" %}
-        <i class="fa fa-check double seen"></i>
-        <i class="fa fa-check double seen"></i>
-    {% endif %}
-</span>
-                    </small>
-                </div>
-            {% endfor %}
-        </div>
 
-        <div class="input-area">
-            <input type="text" id="chatInput" placeholder="Type a message..." />
-            <button id="attach-btn"><i class="fa fa-paperclip"></i></button>
-            <i id="emoji-btn" class="fa fa-smile"></i>
-            <button id="send-btn"><i class="fa fa-paper-plane"></i></button>
-            <div class="emoji-bar" id="emoji-bar">
-                <span>😀</span><span>😂</span><span>😍</span><span>😎</span><span>😢</span>
-                <span>👍</span><span>🔥</span><span>❤️</span><span>🎉</span><span>🚀</span>
-            </div>
-            <input type="file" id="fileInput" style="display:none;">
+              <!-- ✅ Info icon for hash -->
+              <button class="info-btn" onclick="showHash({{ msg.id }})" title="View Hash">
+                <i class="fa fa-info-circle"></i>
+              </button>
+
+              <!-- ✅ Tick indicators -->
+              <span class="ticks">
+                {% if msg.status == "sent" %}
+                  <i class="fa fa-check single"></i>
+                {% elif msg.status == "delivered" %}
+                  <i class="fa fa-check double"></i>
+                  <i class="fa fa-check double"></i>
+                {% elif msg.status == "seen" %}
+                  <i class="fa fa-check double seen"></i>
+                  <i class="fa fa-check double seen"></i>
+                {% endif %}
+              </span>
+            </small>
+          </div>
         </div>
+      {% endfor %}
     </div>
+
+    <div class="chat-message {% if msg.sender == request.user %}sent{% else %}received{% endif %}" 
+         data-id="{{ msg.id }}">
+      <div class="input-area">
+        <input type="text" id="chatInput" placeholder="Type a message..." />
+        <button id="attach-btn"><i class="fa fa-paperclip"></i></button>
+        <i id="emoji-btn" class="fa fa-smile"></i>
+        <button id="send-btn"><i class="fa fa-paper-plane"></i></button>
+        <div class="emoji-bar" id="emoji-bar">
+          <span>😀</span><span>😂</span><span>😍</span><span>😎</span><span>😢</span>
+          <span>👍</span><span>🔥</span><span>❤️</span><span>🎉</span><span>🚀</span>
+        </div>
+        <input type="file" id="fileInput" style="display:none;">
+      </div>
+    </div>
+  </div>
 </div>
-
 
 {{ messages_data|default:"{}"|json_script:"messages-data" }}
 
@@ -211,6 +300,7 @@ const csrftoken = getCookie('csrftoken');
 // Load chat
 function loadChat(user) {
     activeUser = user;
+    window.currentChatUser = user;  // ✅ for polling
     chatBox.innerHTML = '';
     chatHeader.textContent = user;
 
@@ -230,6 +320,7 @@ function addMessageToDOM(message, type, isoTime=null, id=null, classification='l
 
     const wrapper = document.createElement('div');
     wrapper.className = `message-wrapper ${type}`;
+    wrapper.dataset.id = id || '';
 
     const msgDiv = document.createElement('div');
     msgDiv.className = 'msg';
@@ -254,7 +345,6 @@ function addMessageToDOM(message, type, isoTime=null, id=null, classification='l
     label.style.fontSize = '0.65rem';
     label.style.color = '#fff';
     circlesWrapper.appendChild(label);
-
     msgDiv.appendChild(circlesWrapper);
 
     // Message text
@@ -276,7 +366,7 @@ function addMessageToDOM(message, type, isoTime=null, id=null, classification='l
             textSpan.style.filter = 'none';
             lockIcon.className = 'fa fa-unlock ms-2';
 
-            // 🔵 Mark as seen in backend
+            // Mark as seen in backend
             if (id) {
                 await fetch(`/update_status/${id}/`, {
                     method: 'POST',
@@ -284,7 +374,7 @@ function addMessageToDOM(message, type, isoTime=null, id=null, classification='l
                         'X-CSRFToken': csrftoken,
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ seen: true })  // ✅ ensure it becomes "seen"
+                    body: JSON.stringify({ seen: true })
                 });
             }
         });
@@ -319,6 +409,36 @@ function addMessageToDOM(message, type, isoTime=null, id=null, classification='l
     chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
 }
 
+// ✅ Helper to update tick icons dynamically
+function updateTicks(msgId, newStatus) {
+    const msgElem = document.querySelector(`.message-wrapper[data-id="${msgId}"] .tick`);
+    if (!msgElem) return;
+    if (newStatus === "sent") {
+        msgElem.textContent = "✓";
+        msgElem.style.color = "grey";
+    } else if (newStatus === "delivered") {
+        msgElem.textContent = "✓✓";
+        msgElem.style.color = "grey";
+    } else if (newStatus === "seen") {
+        msgElem.textContent = "✓✓";
+        msgElem.style.color = "blue";
+    }
+}
+
+// ✅ Poll statuses every 5 seconds
+async function pollStatuses() {
+    if (!window.currentChatUser) return;
+    try {
+        const response = await fetch(`/api/messages/statuses/?user=${window.currentChatUser}`);
+        if (!response.ok) return;
+        const data = await response.json(); // list: [{id, status}]
+        data.forEach(m => updateTicks(m.id, m.status));
+    } catch (e) {
+        console.warn("Polling error:", e);
+    }
+}
+setInterval(pollStatuses, 5000);
+
 // Send text message
 sendBtn.addEventListener('click', async () => {
     const msg = chatInput.value.trim();
@@ -347,7 +467,7 @@ sendBtn.addEventListener('click', async () => {
             created_at: isoTime,
             classification: classification,
             id: result.message_id,
-            status: result.tick   // ✅ save tick status
+            status: result.tick
         });
 
         alert(result.msg);
@@ -379,6 +499,7 @@ fileInput.addEventListener('change', async () => {
 
             const wrapper = document.createElement('div');
             wrapper.className = 'message-wrapper sent';
+            wrapper.dataset.id = result.message_id;
             const msgDiv = document.createElement('div');
             msgDiv.className = 'msg';
 
@@ -396,12 +517,11 @@ fileInput.addEventListener('change', async () => {
             tsDiv.className = 'timestamp';
             tsDiv.textContent = time;
 
-            // ✅ add tick for files too
             const tickSpan = document.createElement('span');
             tickSpan.className = 'tick';
-            if (result.tick === 'sent') tickSpan.textContent = '✔';
-            else if (result.tick === 'delivered') tickSpan.textContent = '✔✔';
-            else if (result.tick === 'seen') { tickSpan.textContent = '✔✔'; tickSpan.style.color = 'blue'; }
+            if (result.tick === 'sent') tickSpan.textContent = '✓';
+            else if (result.tick === 'delivered') tickSpan.textContent = '✓✓';
+            else if (result.tick === 'seen') { tickSpan.textContent = '✓✓'; tickSpan.style.color = 'blue'; }
             tsDiv.appendChild(document.createTextNode(' '));
             tsDiv.appendChild(tickSpan);
 
@@ -417,7 +537,8 @@ fileInput.addEventListener('change', async () => {
                 sender: "{{ user.username }}",
                 created_at: now.toISOString(),
                 classification: 'file',
-                status: result.tick   // ✅ save tick for file too
+                id: result.message_id,
+                status: result.tick
             });
 
             fileInput.value = '';
@@ -438,6 +559,41 @@ document.querySelectorAll('.emoji-bar span').forEach(emoji => {
     emoji.addEventListener('click', () => { chatInput.value += emoji.textContent; });
 });
 
+function showHash(messageId) {
+    fetch(`/api/get_hash/${messageId}/`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.hash) {
+                const hashBox = document.createElement("div");
+                hashBox.className = "hash-popup";
+                hashBox.innerHTML = `<b>Hash Value:</b><br>${data.hash}`;
+                document.body.appendChild(hashBox);
+
+                hashBox.style = `
+                    position: fixed;
+                    top: 50%; left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: rgba(255, 255, 255, 0.15);
+                    backdrop-filter: blur(12px);
+                    color: white;
+                    border: 1px solid rgba(255,255,255,0.2);
+                    padding: 15px 20px;
+                    border-radius: 12px;
+                    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+                    font-family: monospace;
+                    text-align: center;
+                    z-index: 1000;
+                    transition: opacity 0.3s ease;
+                `;
+                setTimeout(() => {
+                    hashBox.style.opacity = "0";
+                    setTimeout(() => hashBox.remove(), 300);
+                }, 4000);
+            } else alert("Hash not found for this message.");
+        })
+        .catch(err => alert("Error fetching hash: " + err));
+}
+
 // Enter key send
 chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendBtn.click(); });
 
@@ -453,6 +609,7 @@ chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendBtn.c
     }
 })();
 </script>
+
 
 
 </body>
