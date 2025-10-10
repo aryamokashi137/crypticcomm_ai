@@ -75,27 +75,7 @@ body {
 .emoji-bar span:hover { background: rgba(255,255,255,0.2); border-radius: 6px;}
 
 
-.ticks {
-  margin-left: 4px;
-  display: inline-flex;
-  align-items: center;
-}
-
-.ticks .fa-check {
-  font-size: 0.8rem;
-  margin-left: 2px;
-  color: #ccc; /* default gray */
-}
-
-.ticks .double {
-  color: #ccc; /* double tick gray */
-}
-
-.ticks .seen {
-  color: #3aafe6ff; /* blue double tick */
-}
-
-/* --- Info button (hash icon) --- */
+//* --- Info button (hash icon) --- */
 .info-btn {
   background: transparent;
   border: none;
@@ -121,47 +101,72 @@ body {
   transform: scale(1.1);
 }
 
-/* --- Meta row (timestamp + icon + ticks) --- */
-.meta {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 4px;
-  font-size: 0.75rem;
-  color: #ddd;
+/* --- Ensure wrapper allows icon to sit outside bubble --- */
+.message-wrapper {
   position: relative;
-  z-index: 5;
-}
-.meta {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
+  overflow: visible !important;
 }
 
-.info-btn {
-  background: transparent;
-  border: none;
+/* --- Info button positioned just beside bubble --- */
+.info-btn.outside {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.95rem;
   color: #fff;
-  font-size: 13px;
+  background: rgba(255, 255, 255, 0.18);
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 4px rgba(0,0,0,0.25);
+  transition: all 0.2s ease;
   cursor: pointer;
-  padding: 0;
-  margin-left: 4px;
-  opacity: 0.8;
-  transition: opacity 0.2s ease;
+  z-index: 9999;
 }
 
-.info-btn:hover {
-  opacity: 1;
+/* i button Sent (pink, right side) → icon on left, very close */
+.message-wrapper.sent .info-btn.outside {
+  left: 920px;   /* only a few pixels gap */
 }
 
-/* --- Message box --- */
-.msg {
+/* i button Received (blue, left side) → icon on right, very close */
+.message-wrapper.received .info-btn.outside {
+  right: 850px;  /* only a few pixels gap */
+}
+
+.info-btn.outside:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-50%) scale(1.15);
+}
+
+/* Prevent scrollbars */
+.chat-box {
+  overflow-x: hidden !important;
+}
+.message-container {
   position: relative;
-  overflow: visible; /* allows icon visibility */
+  display: inline-block;
 }
 
+.info-icon {
+  position: absolute;
+  right: -25px;   /* Adjust horizontally to sit near the bubble edge */
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.info-icon:hover {
+  color: #fff;
+  transform: translateY(-50%) scale(1.2);
+}
 
 
 </style>
@@ -180,8 +185,7 @@ body {
         <li class="nav-item"><a class="nav-link" href="{% url 'aboutus' %}"><i class="fa fa-info-circle"></i> About Us</a></li>
       </ul>
       <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
-        <li class="nav-item"><a class="nav-link" href="{% url 'profilepage' %}"><i class="fa fa-user"></i> Profile</a></li>
-        <li class="nav-item"><a class="nav-link" href="{% url 'settingspage' %}"><i class="fa fa-cog"></i> Settings</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'profilepage' %}"><i class="fa fa-cog"></i> Settings</a></li>
         {% if user.is_authenticated %}
         <li class="nav-item"><a class="nav-link text-danger fw-bold" href="{% url 'logoutpage' %}">Logout</a></li>
         {% else %}
@@ -212,61 +216,36 @@ body {
     </div>
 
     <div class="chat-box" id="chatBox">
-      {% for msg in messages %}
-        <div class="message-wrapper {% if msg.sender == request.user %}sent{% else %}received{% endif %}">
-          <div class="msg">
-            <p>{{ msg.encrypted_text }}</p>
-            <small class="meta">
-  <span class="timestamp-text">{{ msg.created_at|date:"d/m/Y, H:i" }}</span>
-  <button class="info-btn" onclick="showHash({{ msg.id }})" title="View Hash">
-    <i class="fa fa-info-circle"></i>
-  </button>
-</small>
-
-
-              <!-- ✅ Info icon for hash -->
-              <button class="info-btn" onclick="showHash({{ msg.id }})" title="View Hash">
-                <i class="fa fa-info-circle"></i>
-              </button>
-
-              <!-- ✅ Tick indicators -->
-              <span class="ticks">
-                {% if msg.status == "sent" %}
-                  <i class="fa fa-check single"></i>
-                {% elif msg.status == "delivered" %}
-                  <i class="fa fa-check double"></i>
-                  <i class="fa fa-check double"></i>
-                {% elif msg.status == "seen" %}
-                  <i class="fa fa-check double seen"></i>
-                  <i class="fa fa-check double seen"></i>
-                {% endif %}
-              </span>
-            </small>
-          </div>
-        </div>
-      {% endfor %}
+      <!-- Messages will now be loaded dynamically via JS using messages_data -->
+      <!-- Keep this empty; JS will render messages for selected user -->
     </div>
 
-    <div class="chat-message {% if msg.sender == request.user %}sent{% else %}received{% endif %}" 
-         data-id="{{ msg.id }}">
+    <div class="chat-message">
       <div class="input-area">
         <input type="text" id="chatInput" placeholder="Type a message..." />
         <button id="attach-btn"><i class="fa fa-paperclip"></i></button>
         <i id="emoji-btn" class="fa fa-smile"></i>
         <button id="send-btn"><i class="fa fa-paper-plane"></i></button>
+
         <div class="emoji-bar" id="emoji-bar">
           <span>😀</span><span>😂</span><span>😍</span><span>😎</span><span>😢</span>
           <span>👍</span><span>🔥</span><span>❤️</span><span>🎉</span><span>🚀</span>
         </div>
+
         <input type="file" id="fileInput" style="display:none;">
       </div>
     </div>
   </div>
 </div>
 
+
+
 {{ messages_data|default:"{}"|json_script:"messages-data" }}
 
 <script>
+// ============================
+// VARIABLES
+// ============================
 const messagesData = JSON.parse(document.getElementById('messages-data').textContent || "{}");
 const chatBox = document.getElementById('chatBox');
 const chatInput = document.getElementById('chatInput');
@@ -278,9 +257,12 @@ const fileInput = document.getElementById('fileInput');
 const chatHeader = document.getElementById('chatHeader');
 const chatList = document.getElementById('chatList');
 
-let activeUser = null;
+let activeUser = null;  // ✅ move to top
+const loggedInUser = "{{ request.user.username }}"; // ✅ dynamic current user
 
-// CSRF helper
+// ============================
+// CSRF HELPER
+// ============================
 function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -297,7 +279,9 @@ function getCookie(name) {
 }
 const csrftoken = getCookie('csrftoken');
 
-// Load chat
+// ============================
+// LOAD CHAT
+// ============================
 function loadChat(user) {
     activeUser = user;
     window.currentChatUser = user;  // ✅ for polling
@@ -306,14 +290,17 @@ function loadChat(user) {
 
     const msgs = messagesData[user] || [];
     msgs.forEach(m => {
-        const type = (m.sender === "{{ user.username }}") ? 'sent' : 'received';
-        addMessageToDOM(m.text, type, m.created_at || m.timestamp, m.id, m.classification, m.status);
+        const type = (m.sender === loggedInUser) ? 'sent' : 'received'; // ✅ replaced template tag
+        addMessageToDOM(m.text, type, m.created_at || m.timestamp, m.id, m.classification, m.status, m.message_type || 'text');
     });
 
     chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
 }
 
-function addMessageToDOM(message, type, isoTime=null, id=null, classification='low', status='sent'){
+// ============================
+// ADD MESSAGE TO DOM
+// ============================
+function addMessageToDOM(message, type, isoTime=null, id=null, classification='low', status='sent', message_type='text'){
     const now = isoTime ? new Date(isoTime) : new Date();
     const options = { timeZone: 'Asia/Kolkata', hour12: false };
     const time = new Intl.DateTimeFormat('en-GB', { ...options, hour: '2-digit', minute: '2-digit', day:'2-digit', month:'2-digit', year:'numeric' }).format(now);
@@ -325,64 +312,83 @@ function addMessageToDOM(message, type, isoTime=null, id=null, classification='l
     const msgDiv = document.createElement('div');
     msgDiv.className = 'msg';
 
-    // Circle + badge
-    const circlesWrapper = document.createElement('div');
-    circlesWrapper.className = 'circles';
-    const circle = document.createElement('div');
-    circle.className = 'circle';
-    let labelColor = '#ccc';
-    if(classification === 'low') { circle.classList.add('green'); labelColor = 'rgba(127,255,127,0.2)'; }
-    else if(classification === 'medium') { circle.classList.add('yellow'); labelColor = 'rgba(255,243,143,0.2)'; }
-    else if(classification === 'high') { circle.classList.add('red'); labelColor = 'rgba(255,127,127,0.2)'; }
-    circlesWrapper.appendChild(circle);
+    if(message_type === 'text'){
+        // === CIRCLE + BADGE ===
+        const circlesWrapper = document.createElement('div');
+        circlesWrapper.className = 'circles';
+        const circle = document.createElement('div');
+        circle.className = 'circle';
+        let labelColor = '#ccc';
+        if(classification === 'low') { circle.classList.add('green'); labelColor = 'rgba(127,255,127,0.2)'; }
+        else if(classification === 'medium') { circle.classList.add('yellow'); labelColor = 'rgba(255,243,143,0.2)'; }
+        else if(classification === 'high') { circle.classList.add('red'); labelColor = 'rgba(255,127,127,0.2)'; }
+        circlesWrapper.appendChild(circle);
 
-    const label = document.createElement('span');
-    label.className = 'circle-label';
-    label.textContent = `[${classification}]`;
-    label.style.backgroundColor = labelColor;
-    label.style.padding = '1px 4px';
-    label.style.borderRadius = '4px';
-    label.style.fontSize = '0.65rem';
-    label.style.color = '#fff';
-    circlesWrapper.appendChild(label);
-    msgDiv.appendChild(circlesWrapper);
+        const label = document.createElement('span');
+        label.className = 'circle-label';
+        label.textContent = `[${classification}]`;
+        label.style.backgroundColor = labelColor;
+        label.style.padding = '1px 4px';
+        label.style.borderRadius = '4px';
+        label.style.fontSize = '0.65rem';
+        label.style.color = '#fff';
+        circlesWrapper.appendChild(label);
+        msgDiv.appendChild(circlesWrapper);
 
-    // Message text
-    const textSpan = document.createElement('span');
-    textSpan.textContent = message;
+        // Message text
+        const textSpan = document.createElement('span');
+        textSpan.textContent = message;
 
-    // --- Add blur + lock only for received messages ---
-    if(type === 'received'){
-        textSpan.style.filter = 'blur(5px)';
-        textSpan.style.transition = 'filter 0.3s ease';
+        if(type === 'received'){
+            textSpan.style.filter = 'blur(5px)';
+            textSpan.style.transition = 'filter 0.3s ease';
 
-        const lockIcon = document.createElement('i');
-        lockIcon.className = 'fa fa-lock ms-2';
-        lockIcon.title = 'Click to view message';
-        lockIcon.style.cursor = 'pointer';
-        msgDiv.appendChild(lockIcon);
+            const lockIcon = document.createElement('i');
+            lockIcon.className = 'fa fa-lock ms-2';
+            lockIcon.title = 'Click to view message';
+            lockIcon.style.cursor = 'pointer';
+            msgDiv.appendChild(lockIcon);
 
-        lockIcon.addEventListener('click', async () => {
-            textSpan.style.filter = 'none';
-            lockIcon.className = 'fa fa-unlock ms-2';
+            lockIcon.addEventListener('click', async () => {
+                textSpan.style.filter = 'none';
+                lockIcon.className = 'fa fa-unlock ms-2';
 
-            // Mark as seen in backend
-            if (id) {
-                await fetch(`/update_status/${id}/`, {
-                    method: 'POST',
-                    headers: { 
-                        'X-CSRFToken': csrftoken,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ seen: true })
-                });
-            }
-        });
-    }
+                if (id) {
+                    await fetch(`/update_status/${id}/`, {
+                        method: 'POST',
+                        headers: { 
+                            'X-CSRFToken': csrftoken,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ seen: true })
+                    });
+                }
+            });
+        }
 
-    msgDiv.appendChild(textSpan);
+        msgDiv.appendChild(textSpan);
+    } else if(message_type === 'file'){
+    const link = document.createElement('a');
+    link.href = message.url;       // backend-provided URL or temporary URL
+    link.download = message.text;  // file name
+    link.textContent = "📎 " + message.text;  // show the file name with paperclip
+    link.style.color = "white";
+    link.style.textDecoration = "underline";
+    link.style.cursor = "pointer";
 
-    // Timestamp + ✅ tick rendering
+    msgDiv.appendChild(link);
+}
+
+
+    // --- Info button OUTSIDE ---
+    const infoBtn = document.createElement('button');
+    infoBtn.className = 'info-btn outside';
+    infoBtn.innerHTML = '<i class="fa fa-info-circle"></i>';
+    infoBtn.title = 'View Hash';
+    infoBtn.onclick = () => showHash(id);
+    wrapper.appendChild(infoBtn);
+
+    // Timestamp + tick
     const tsDiv = document.createElement('div');
     tsDiv.className = 'timestamp';
     tsDiv.textContent = time;
@@ -390,26 +396,21 @@ function addMessageToDOM(message, type, isoTime=null, id=null, classification='l
     if (type === 'sent') {
         const tickSpan = document.createElement('span');
         tickSpan.className = 'tick';
-
-        if (status === "sent") {
-            tickSpan.textContent = "✓"; // single grey
-        } else if (status === "delivered") {
-            tickSpan.textContent = "✓✓"; // double grey
-        } else if (status === "seen") {
-            tickSpan.textContent = "✓✓"; // double blue
-            tickSpan.style.color = "blue";
-        }
+        if (status === "sent") tickSpan.textContent = "✓";
+        else if (status === "delivered") tickSpan.textContent = "✓✓";
+        else if (status === "seen") { tickSpan.textContent = "✓✓"; tickSpan.style.color = "blue"; }
         tsDiv.appendChild(tickSpan);
     }
 
     msgDiv.appendChild(tsDiv);
-
     wrapper.appendChild(msgDiv);
     chatBox.appendChild(wrapper);
     chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
 }
 
-// ✅ Helper to update tick icons dynamically
+// ============================
+// UPDATE TICKS
+// ============================
 function updateTicks(msgId, newStatus) {
     const msgElem = document.querySelector(`.message-wrapper[data-id="${msgId}"] .tick`);
     if (!msgElem) return;
@@ -425,7 +426,9 @@ function updateTicks(msgId, newStatus) {
     }
 }
 
-// ✅ Poll statuses every 5 seconds
+// ============================
+// POLL STATUSES
+// ============================
 async function pollStatuses() {
     if (!window.currentChatUser) return;
     try {
@@ -439,7 +442,9 @@ async function pollStatuses() {
 }
 setInterval(pollStatuses, 5000);
 
-// Send text message
+// ============================
+// SEND TEXT MESSAGE
+// ============================
 sendBtn.addEventListener('click', async () => {
     const msg = chatInput.value.trim();
     if (!msg || !activeUser) return;
@@ -456,14 +461,12 @@ sendBtn.addEventListener('click', async () => {
         const classification = result.classification || 'low';
         const isoTime = new Date().toISOString();
 
-        // show in chat immediately
         addMessageToDOM(msg, 'sent', isoTime, result.message_id, classification, result.tick);
 
-        // store in messagesData
         if (!messagesData[activeUser]) messagesData[activeUser] = [];
         messagesData[activeUser].push({
             text: msg,
-            sender: "{{ user.username }}",
+            sender: loggedInUser,
             created_at: isoTime,
             classification: classification,
             id: result.message_id,
@@ -476,7 +479,9 @@ sendBtn.addEventListener('click', async () => {
     }
 });
 
-// File upload as message
+// ============================
+// FILE UPLOAD
+// ============================
 attachBtn.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', async () => {
     const file = fileInput.files[0];
@@ -497,49 +502,21 @@ fileInput.addEventListener('change', async () => {
         if (result.status === 'success') {
             alert(result.msg);
 
-            const wrapper = document.createElement('div');
-            wrapper.className = 'message-wrapper sent';
-            wrapper.dataset.id = result.message_id;
-            const msgDiv = document.createElement('div');
-            msgDiv.className = 'msg';
-
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(file);
-            link.download = file.name;
-            link.textContent = "📎 " + file.name;
-            link.style.color = "white";
-
-            const now = new Date();
-            const options = { timeZone: 'Asia/Kolkata', hour12: false };
-            const time = new Intl.DateTimeFormat('en-GB', { ...options, hour: '2-digit', minute: '2-digit', day:'2-digit', month:'2-digit', year:'numeric' }).format(now);
-
-            const tsDiv = document.createElement('div');
-            tsDiv.className = 'timestamp';
-            tsDiv.textContent = time;
-
-            const tickSpan = document.createElement('span');
-            tickSpan.className = 'tick';
-            if (result.tick === 'sent') tickSpan.textContent = '✓';
-            else if (result.tick === 'delivered') tickSpan.textContent = '✓✓';
-            else if (result.tick === 'seen') { tickSpan.textContent = '✓✓'; tickSpan.style.color = 'blue'; }
-            tsDiv.appendChild(document.createTextNode(' '));
-            tsDiv.appendChild(tickSpan);
-
-            msgDiv.appendChild(link);
-            msgDiv.appendChild(tsDiv);
-            wrapper.appendChild(msgDiv);
-            chatBox.appendChild(wrapper);
-            chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
+            addMessageToDOM({name: file.name, url: URL.createObjectURL(file)}, 'sent', new Date().toISOString(), result.message_id, 'file', result.tick, 'file');
 
             if (!messagesData[activeUser]) messagesData[activeUser] = [];
             messagesData[activeUser].push({
-                text: "📎 " + file.name,
-                sender: "{{ user.username }}",
+                text: file.name,                  // just the file name
+                sender: "{{ user.username }}",    // current logged-in user
                 created_at: now.toISOString(),
-                classification: 'file',
+                classification: 'file',           // mark as a file
                 id: result.message_id,
-                status: result.tick
+                status: result.tick,
+                message_type: 'file',             // important for DOM rendering
+                url: result.file_url || URL.createObjectURL(file) // backend URL or temporary object URL
             });
+
+
 
             fileInput.value = '';
         } else {
@@ -550,7 +527,9 @@ fileInput.addEventListener('change', async () => {
     }
 });
 
-// Emoji picker
+// ============================
+// EMOJI PICKER
+// ============================
 emojiBtn.addEventListener('click', () => {
     emojiBar.style.display = emojiBar.style.display === 'flex' ? 'none' : 'flex';
     emojiBar.style.flexDirection = 'row';
@@ -559,14 +538,34 @@ document.querySelectorAll('.emoji-bar span').forEach(emoji => {
     emoji.addEventListener('click', () => { chatInput.value += emoji.textContent; });
 });
 
+// ============================
+// SHOW HASH
+// ============================
 function showHash(messageId) {
     fetch(`/api/get_hash/${messageId}/`)
         .then(res => res.json())
         .then(data => {
             if (data.hash) {
+                const existing = document.querySelector(".hash-popup");
+                if (existing) existing.remove();
+
                 const hashBox = document.createElement("div");
                 hashBox.className = "hash-popup";
-                hashBox.innerHTML = `<b>Hash Value:</b><br>${data.hash}`;
+                hashBox.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <b>Message Hash</b>
+                        <button id="close-hash" style="
+                            background:none;
+                            border:none;
+                            color:white;
+                            font-size:18px;
+                            cursor:pointer;
+                            font-weight:bold;
+                        ">&times;</button>
+                    </div>
+                    <div style="font-family:monospace; word-wrap:break-word;">${data.hash}</div>
+                `;
+
                 document.body.appendChild(hashBox);
 
                 hashBox.style = `
@@ -577,29 +576,36 @@ function showHash(messageId) {
                     backdrop-filter: blur(12px);
                     color: white;
                     border: 1px solid rgba(255,255,255,0.2);
-                    padding: 15px 20px;
+                    padding: 18px 22px;
                     border-radius: 12px;
                     box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-                    font-family: monospace;
-                    text-align: center;
+                    text-align: left;
                     z-index: 1000;
-                    transition: opacity 0.3s ease;
+                    min-width: 280px;
+                    max-width: 500px;
+                    word-break: break-all;
                 `;
-                setTimeout(() => {
-                    hashBox.style.opacity = "0";
-                    setTimeout(() => hashBox.remove(), 300);
-                }, 4000);
-            } else alert("Hash not found for this message.");
+
+                document.getElementById("close-hash").addEventListener("click", () => {
+                    hashBox.remove();
+                });
+            } else {
+                alert("Hash not found for this message.");
+            }
         })
         .catch(err => alert("Error fetching hash: " + err));
 }
 
-// Enter key send
+// ============================
+// ENTER KEY SEND
+// ============================
 chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendBtn.click(); });
 
-// Init first chat
+// ============================
+// INIT FIRST CHAT
+// ============================
 (function initDefault() {
-    const first = chatList.querySelector('li');
+    const first = chatList.querySelector('li[data-user]');
     if (first) {
         const uname = first.getAttribute('data-user');
         first.classList.add('active');
@@ -608,7 +614,21 @@ chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendBtn.c
         chatHeader.textContent = "No chats";
     }
 })();
+
+// ============================
+// CLICK USER TO LOAD CHAT
+// ============================
+chatList.querySelectorAll('li[data-user]').forEach(li => {
+    li.addEventListener('click', () => {
+        chatList.querySelectorAll('li').forEach(l => l.classList.remove('active'));
+        li.classList.add('active');
+        const selectedUser = li.getAttribute('data-user');
+        activeUser = selectedUser;
+        loadChat(selectedUser);
+    });
+});
 </script>
+
 
 
 

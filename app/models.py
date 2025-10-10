@@ -1,9 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
-
-from django.db import models
-from django.contrib.auth.models import User
 
 class Message(models.Model):
     """
@@ -51,13 +50,16 @@ class Message(models.Model):
     )
     status = models.CharField(
         max_length=10,
-        choices=[("sent", "Sent"), ("delivered", "Delivered"), ("seen", "Seen")],
+        choices=STATUS_CHOICES,
         default="sent"
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    
+    message_type = models.CharField(max_length=10, default='text')
 
     def __str__(self):
         return f"{self.sender} -> {self.receiver} [{self.status}]"
+
 
 class EncryptedFile(models.Model):
     """
@@ -74,7 +76,7 @@ class EncryptedFile(models.Model):
 
     def __str__(self):
         return f"File {self.filename} (Message {self.message.id})"
-    
+
 
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -85,14 +87,12 @@ class Profile(models.Model):
     def __str__(self):
         return self.user.username
 
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-from django.contrib.auth.models import User
-from .models import Profile  # adjust if your model is elsewhere
 
 @receiver(post_save, sender=User)
 def create_or_update_user_profile(sender, instance, created, **kwargs):
-    #Create a profile if the user doesn't have one
+    """
+    Automatically creates or updates a user profile when a User is saved.
+    """
     if created:
         Profile.objects.create(user=instance)
     else:

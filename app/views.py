@@ -49,13 +49,17 @@ from .encryption_utils import encrypt_message, decrypt_message
 # ---------- page views ----------
 def homepage(request):
     if request.method == "POST":
-       if request.method == 'POST':
-        name = request.POST.get('name', '').strip()
+        # --- Debug logs to check received data ---
+        print("Registration POST dict:", dict(request.POST))
+        print("Registration raw body:", request.body[:200])
+
+        username = request.POST.get('username', '').strip()
         email = request.POST.get('email', '').strip()
         password = request.POST.get('password', '')
         confirm_password = request.POST.get('confirmPassword', '')
 
-        if not name or not email or not password or not confirm_password:
+        # --- Validation checks ---
+        if not username or not email or not password or not confirm_password:
             messages.error(request, "All fields are required.")
             return render(request, "homepage.html")
 
@@ -63,7 +67,7 @@ def homepage(request):
             messages.error(request, "Passwords do not match.")
             return render(request, "homepage.html")
 
-        if User.objects.filter(username=name).exists():
+        if User.objects.filter(username=username).exists():
             messages.error(request, "Username already taken.")
             return render(request, "homepage.html")
 
@@ -71,12 +75,15 @@ def homepage(request):
             messages.error(request, "Email already registered.")
             return render(request, "homepage.html")
 
-        user = User.objects.create_user(username=name, email=email, password=password)
+        # --- Create user ---
+        user = User.objects.create_user(username=username, email=email, password=password)
         user.save()
         messages.success(request, "Registration successful! Please login.")
         return redirect('loginpage')
-        pass
+
+    # For GET request
     return render(request, "homepage.html")
+
 
 def loginpage(request):
      if request.method == "POST":
@@ -109,34 +116,32 @@ def msgpage(request):
         "user_emails": user_emails,
         "message_count": message_count
     })
+
 @login_required(login_url='loginpage')
 def inboxpage(request):
     """
     Pass structured messages_data to template.
     Group messages by conversation partner (other user) so frontend JS can access messagesData[user].
     Include messages where the current user is either sender or receiver.
+    Show all other users in chat list even if no messages exist.
     """
-    users = User.objects.exclude(id=request.user.id)
-
-    # Fetch all messages where the current user is involved (either sender or receiver)
-    # Order ascending so messages appear in chronological order within each conversation
+    # Fetch all messages where the current user is involved
     inbox_messages = Message.objects.filter(
         Q(receiver=request.user) | Q(sender=request.user)
     ).order_by("created_at")
 
     messages_data = {}
+    chat_usernames = set()  # store users who have messages
 
     for m in inbox_messages:
         try:
             private_key = getattr(m, "private_key", None)
-            # decrypt_message expects (bundle_str, level, private_key)
             plain = decrypt_message(m.encrypted_text, m.classification, private_key)
         except Exception as e:
             logger.exception("Decryption failed for msg %s: %s", getattr(m, "id", "?"), e)
             plain = "[Decryption Failed]"
 
-        # Determine conversation partner (the "other" user)
-        # If the current user is the sender, other = receiver; else other = sender
+        # Determine conversation partner
         try:
             sender_username = m.sender.username if m.sender else None
             receiver_username = m.receiver.username if m.receiver else None
@@ -149,11 +154,14 @@ def inboxpage(request):
         else:
             other_username = sender_username
 
-        # Skip if other participant is missing (defensive)
+        # Skip if other participant is missing
         if not other_username:
             continue
 
-        # initialize list for this conversation partner
+        # Add to chat users set
+        chat_usernames.add(other_username)
+
+        # Initialize list for this conversation partner
         if other_username not in messages_data:
             messages_data[other_username] = []
 
@@ -166,13 +174,20 @@ def inboxpage(request):
             "created_at": m.created_at.isoformat() if m.created_at else None
         })
 
+    # Fetch all other users for chat list (exclude self)
+    all_users = User.objects.exclude(id=request.user.id)
+
+    # Merge with users who have messages to maintain order
+    # users with messages first, then others
+    users_with_messages = User.objects.filter(username__in=chat_usernames)
+    other_users = all_users.exclude(username__in=chat_usernames)
+
+    users = list(users_with_messages) + list(other_users)
+
     return render(request, "inboxpage.html", {
         "users": users,
         "messages_data": messages_data
     })
-
-
-
 def logoutpage(request):
     logout(request)
     messages.success(request, "Logged out")
@@ -244,7 +259,9 @@ def send_message_api(request):
             private_key=private_key,
             classification=mapped_conf,
             hash_value=h,
-            status="sent"   # ✅ tick: mark as sent
+            message_type='text' ,
+            status="sent" 
+        
         )
 
         # try to email notify
@@ -272,6 +289,14 @@ def send_message_api(request):
 
 
 
+# small helper: decode BinaryField (bytes/memoryview) that contains the bundle (utf-8)
+def _bundle_bytes_to_str(enc_bytes):
+    # enc_bytes may be bytes, bytearray, memoryview or str
+    if isinstance(enc_bytes, memoryview):
+        enc_bytes = enc_bytes.tobytes()
+    if isinstance(enc_bytes, (bytes, bytearray)):
+        return enc_bytes.decode("utf-8")
+    return str(enc_bytes)
 
 logger = logging.getLogger(__name__)
 
@@ -279,8 +304,13 @@ logger = logging.getLogger(__name__)
 @permission_classes([IsAuthenticated])
 def send_file(request):
     """
-    Handles sending file attachments and notifying the receiver via email.
+    Handles sending file attachments without ML classification.
+    Files are encrypted with Fernet and stored in EncryptedFile.
     """
+    import base64
+    from cryptography.fernet import Fernet
+    from .models import EncryptedFile, Message
+
     try:
         receiver_identifier = request.POST.get("receiver")
         uploaded_file = request.FILES.get("file")
@@ -288,7 +318,7 @@ def send_file(request):
         if not receiver_identifier or not uploaded_file:
             return Response({"error": "receiver and file are required"}, status=400)
 
-        # ----------------- Resolve receiver -----------------
+        # Resolve receiver
         try:
             if "@" in receiver_identifier:
                 receiver = User.objects.get(email=receiver_identifier)
@@ -299,51 +329,52 @@ def send_file(request):
 
         sender = request.user
 
-        # ----------------- Encrypt file data -----------------
+        # Encrypt file data using Fernet only
         file_bytes = uploaded_file.read()
-        file_b64_str = base64.b64encode(file_bytes).decode("utf-8")  # bytes → base64 string
-        encrypted_dict = encrypt_message(file_b64_str, "low")        # returns dict
-        encrypted_data = encrypted_dict.get("ciphertext", "").encode("utf-8")  # str → bytes
+        file_b64 = base64.b64encode(file_bytes)
+        key_bytes = Fernet.generate_key()
+        f = Fernet(key_bytes)
+        encrypted_data = f.encrypt(file_b64)
+        private_key_str = key_bytes.decode("utf-8")
 
-        # ----------------- Create Message for file -----------------
+        # Create a placeholder Message for the file
         file_message = Message.objects.create(
             sender=sender,
             receiver=receiver,
             encrypted_text=f"[File attachment: {uploaded_file.name}]",
-            classification="low",
-            status="sent"   # ✅ tick: mark as sent
+            classification="low",  # always low
+            private_key=private_key_str,
+            message_type='file',
+            status="sent"
+            
         )
 
-        # ----------------- Save EncryptedFile -----------------
+        # Save encrypted file bytes
         EncryptedFile.objects.create(
             message=file_message,
             filename=uploaded_file.name,
             encrypted_data=encrypted_data
         )
 
-        # ----------------- Send notification email -----------------
-        subject = "New File Received on CrypticComm"
-        html_message = f"""
-        <html>
-        <body>
+        # Send notification email
+        try:
+            subject = "New File Received on CrypticComm"
+            html_message = f"""
+            <html><body>
             <p>Hi <b>{receiver.username}</b>,</p>
             <p>You have received a file <b>{uploaded_file.name}</b> from <b>{sender.username}</b>.</p>
-            <p>Log in to <a href="http://127.0.0.1:8000/" target="_blank">CrypticComm</a> to view/download it securely.</p>
-            <br>
-            <p>— CrypticComm</p>
-        </body>
-        </html>
-        """
-        try:
+            <p>Log in to <a href="http://127.0.0.1:8000/">CrypticComm</a> to view/download it securely.</p>
+            </body></html>
+            """
             send_mail(
-                subject=subject,
+                subject,
                 message=f"You have received a file from {sender.username}.",
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=[receiver.email],
                 html_message=html_message,
                 fail_silently=False
             )
-            file_message.status = "delivered"   # ✅ tick: mark as delivered after email sent
+            file_message.status = "delivered"
             file_message.save(update_fields=["status"])
         except Exception as mail_error:
             logger.warning("Email sending failed: %s", mail_error)
@@ -352,12 +383,48 @@ def send_file(request):
             "status": "success",
             "msg": "File sent successfully!",
             "message_id": file_message.id,
-            "tick": file_message.status  # ✅ return tick for frontend
+            "tick": file_message.status
         }, status=200)
 
     except Exception as e:
-        logger.error("send_file error: %s\n%s", e, traceback.format_exc())
+        logger.error("send_file error: %s", e, exc_info=True)
         return Response({"error": str(e)}, status=500)
+
+
+
+def decrypt_file_for_message(message):
+    """
+    Decrypts the file data for a given Message that represents a file attachment.
+    Returns (filename, file_bytes) or an error string.
+    """
+    import base64
+    from cryptography.fernet import Fernet
+    from .models import EncryptedFile
+
+    try:
+        enc_obj = EncryptedFile.objects.filter(message=message).first()
+        if not enc_obj:
+            return "[Decryption Failed: Encrypted file not found]"
+
+        if not message.private_key:
+            return "[Decryption Failed: Missing private key]"
+
+        f = Fernet(message.private_key.encode("utf-8"))
+
+        enc_data = enc_obj.encrypted_data
+        if isinstance(enc_data, memoryview):
+            enc_data = enc_data.tobytes()
+        if isinstance(enc_data, str):
+            enc_data = enc_data.encode("utf-8")
+
+        # decrypt -> base64 bytes
+        decrypted_b64 = f.decrypt(enc_data)
+        file_bytes = base64.b64decode(decrypted_b64)
+
+        return (enc_obj.filename, file_bytes)
+    except Exception as e:
+        logger.exception("decrypt_file_for_message failed: %s", e)
+        return f"[Decryption Failed: {str(e)}]"
 
 
 
@@ -365,21 +432,32 @@ def send_file(request):
 @permission_classes([IsAuthenticated])
 def inbox_api(request):
     """
-    Return decrypted messages for currently logged-in user (server side decrypt).
-    Auto-update 'sent' → 'delivered' for messages fetched by the receiver.
+    Return decrypted messages for the logged-in user.
+    Distinguishes text messages from file messages.
     """
+    import base64
+    from .models import EncryptedFile, Message
+
     try:
         inbox_messages = Message.objects.filter(receiver=request.user).order_by("-created_at")
-
-        # 🔄 auto-update any "sent" → "delivered"
         inbox_messages.filter(status="sent").update(status="delivered")
 
         data = []
         for m in inbox_messages:
-            try:
-                plain = decrypt_message(m.encrypted_text, m.classification, m.private_key)
-            except Exception:
-                plain = "[Decryption Failed]"
+            # Detect file message
+            if isinstance(m.encrypted_text, str) and m.encrypted_text.startswith("[File attachment:"):
+                result = decrypt_file_for_message(m)
+                if isinstance(result, tuple):
+                    filename, file_bytes = result
+                    file_b64 = base64.b64encode(file_bytes).decode("utf-8")
+                    plain = f"[File: {filename}] (Base64 attached)"
+                else:
+                    plain = result
+            else:
+                try:
+                    plain = decrypt_message(m.encrypted_text, m.classification, m.private_key)
+                except Exception:
+                    plain = "[Decryption Failed]"
 
             data.append({
                 "id": m.id,
@@ -388,13 +466,14 @@ def inbox_api(request):
                 "classification": m.classification,
                 "hash": m.hash_value,
                 "created_at": m.created_at.isoformat() if m.created_at else None,
-                "status": getattr(m, "status", None)  # ✅ sender will see updated ticks
+                "status": getattr(m, "status", None)
             })
+
         return Response(data, status=status.HTTP_200_OK)
+
     except Exception as e:
         logger.exception("inbox_api error: %s", e)
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 from django.views.decorators.csrf import csrf_exempt
 
@@ -426,26 +505,50 @@ def decrypt_message_view(request):
 
 from django.views.decorators.csrf import csrf_exempt
 
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def decrypt_message_api(request):
+import base64
+from cryptography.fernet import Fernet
+
+import base64
+from cryptography.fernet import Fernet
+
+def decrypt_message_api(encrypted_text, classification=None, private_key=None):
     """
-    Decrypt a single message on-demand
+    Core decryption helper — decrypts encrypted text or file data using Fernet.
+    Works for both normal messages and file attachments.
     """
+    import base64
+    from cryptography.fernet import Fernet
+
     try:
-        data = request.data
-        encrypted_text = data.get("encrypted_text")
-        classification = data.get("classification")
-        private_key = data.get("private_key")
+        if not private_key:
+            raise ValueError("Missing private key for decryption")
 
-        if not encrypted_text or not classification:
-            return Response({"status": "error", "error": "Missing data"}, status=400)
+        # Initialize Fernet
+        fernet = Fernet(private_key.encode())
 
-        decrypted_text = decrypt_message(encrypted_text, classification, private_key)
-        return Response({"status": "success", "decrypted_text": decrypted_text}, status=200)
+        # ensure encrypted_text is string
+        if isinstance(encrypted_text, bytes):
+            encrypted_text = encrypted_text.decode("utf-8")
+
+        # 🔓 Perform decryption
+        decrypted_b64 = fernet.decrypt(encrypted_text.encode("utf-8"))
+
+        try:
+            # Try decoding as base64 (for files)
+            decrypted_data = base64.b64decode(decrypted_b64)
+            # Attempt to decode to text if it's readable, else keep raw bytes
+            try:
+                return decrypted_data.decode("utf-8")
+            except UnicodeDecodeError:
+                return decrypted_data  # return bytes for binary file content
+        except Exception:
+            # Not base64 data — return as string
+            return decrypted_b64.decode("utf-8")
 
     except Exception as e:
-        return Response({"status": "error", "error": str(e)}, status=500)
+        return f"[Decryption Failed: {str(e)}]"
+
+
     
 
 @api_view(["POST"])
@@ -584,11 +687,6 @@ def profilepage(request):
         'user_form': user_form,
         'profile_form': profile_form,
     })
-
-
-
-def settingspage(request):
-    return render(request, 'settingspage.html')
 
 
 def aboutus(request):

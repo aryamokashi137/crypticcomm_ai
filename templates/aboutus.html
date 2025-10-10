@@ -101,8 +101,7 @@
         <li class="nav-item"><a class="nav-link text-white" href="{% url 'aboutus' %}"><i class="fa fa-info-circle"></i> About Us</a></li>
       </ul>
       <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
-        <li class="nav-item"><a class="nav-link text-white" href="{% url 'profilepage' %}"><i class="fa fa-user"></i> Profile</a></li>
-        <li class="nav-item"><a class="nav-link text-white" href="{% url 'settingspage' %}"><i class="fa fa-cog"></i> Settings</a></li>
+        <li class="nav-item"><a class="nav-link text-white" href="{% url 'profilepage' %}"><i class="fa fa-cog"></i> Settings</a></li>
         {% if user.is_authenticated %}
         <li class="nav-item"><a class="nav-link text-danger fw-bold" href="{% url 'logoutpage' %}">Logout</a></li>
         {% else %}

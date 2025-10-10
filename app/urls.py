@@ -11,7 +11,6 @@ urlpatterns = [
     path("send_message_api/", views.send_message_api, name="send_message_api"),
     path("aboutus/", views.aboutus, name="aboutus"),
     path("profilepage/", views.profilepage, name="profilepage"),
-    path("settingspage/", views.settingspage, name="settingspage"),
     path("api/send_file/", views.send_file, name="send_file"),
     path("api/decrypt_message/", views.decrypt_message_api, name="decrypt_message"),
     path("update_status/<int:message_id>/", views.update_status, name="update_status"),
